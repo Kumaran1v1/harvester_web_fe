@@ -4,6 +4,8 @@ import { useAppDispatch } from '../hooks/storeHooks';
 import { showToast } from '../redux/toast/toastSlice';
 import { Box, Typography, Button, Paper } from '@mui/material';
 
+
+
 interface SocketContextType {
   socket: Socket | null;
 }
@@ -19,7 +21,11 @@ export const SocketProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
   useEffect(() => {
     // Connect to backend socket server
-    const newSocket = io('http://localhost:5000');
+    const apiBaseUrl =
+      import.meta.env.VITE_API_BASE_URL ||
+      import.meta.env.VITE_LOCAL_API_URL ||
+      'http://localhost:5000';
+    const newSocket = io(apiBaseUrl);
     setSocket(newSocket);
 
     // Join room based on user role and profile ID

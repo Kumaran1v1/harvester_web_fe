@@ -24,17 +24,20 @@ export const Login: React.FC = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ identifier, password }),
       });
-      
-      const data = await res.json();
+
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         throw new Error(data.message || "Invalid email/mobile or password.");
       }
-      
+      if (!data.token) {
+        throw new Error("Login succeeded but no token was returned.");
+      }
+
       localStorage.setItem("token", data.token);
       localStorage.setItem("user", JSON.stringify(data.user));
-      navigate("/dashboard");
+      navigate("/dashboard", { replace: true });
     } catch (err: any) {
-      setError(err.message || "Connection to database auth server failed.");
+      setError(err.message || "Connection to auth server failed.");
     }
   };
 

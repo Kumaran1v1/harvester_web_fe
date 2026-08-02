@@ -12,9 +12,14 @@ import Operators from "../pages/Operators/Operators";
 import BunkDetails from "../pages/BunkDetails/BunkDetails";
 
 export const AppRoutes: React.FC = () => {
+  const isAuthenticated = localStorage.getItem("token") !== null;
+
   return (
     <Routes>
-      <Route path={ROUTES.LOGIN} element={<Login />} />
+      <Route
+        path={ROUTES.LOGIN}
+        element={isAuthenticated ? <Navigate to={ROUTES.DASHBOARD} replace /> : <Login />}
+      />
 
       <Route element={<PrivateRoute />}>
         <Route element={<MainLayout />}>
@@ -28,7 +33,10 @@ export const AppRoutes: React.FC = () => {
         </Route>
       </Route>
 
-      <Route path="*" element={<Navigate to={ROUTES.DASHBOARD} replace />} />
+      <Route
+        path="*"
+        element={<Navigate to={isAuthenticated ? ROUTES.DASHBOARD : ROUTES.LOGIN} replace />}
+      />
     </Routes>
   );
 };
