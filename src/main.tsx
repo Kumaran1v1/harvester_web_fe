@@ -7,14 +7,12 @@ import App from "./App";
 import { ThemeContextProvider } from "./context/ThemeContext";
 import { SocketProvider } from "./context/SocketContext";
 
-// In production, call the backend host directly. In dev, keep /api relative so Vite proxy handles it (avoids CORS).
-const API_BASE_URL = import.meta.env.PROD
-  ? (
-      import.meta.env.VITE_API_BASE_URL ||
-      import.meta.env.VITE_LOCAL_API_URL ||
-      ""
-    ).replace(/\/$/, "")
-  : "";
+// Always send /api calls to the env backend base URL
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL ||
+  import.meta.env.VITE_LOCAL_API_URL ||
+  "http://localhost:5000"
+).replace(/\/$/, "");
 
 // Global fetch interceptor: resolve /api/ against backend URL and append JWT
 const originalFetch = window.fetch;
@@ -22,9 +20,7 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const token = localStorage.getItem("token");
   const isApi = typeof input === "string" && input.startsWith("/api/");
   if (isApi) {
-    if (API_BASE_URL) {
-      input = `${API_BASE_URL}${input}`;
-    }
+    input = `${API_BASE_URL}${input}`;
     if (token) {
       init = init || {};
       init.headers = {
