@@ -60,8 +60,16 @@ export const Bills: React.FC = () => {
   
   // Selected items & lists
   const [selectedBill, setSelectedBill] = useState<Bill | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState("");
   const [confirmMessage, setConfirmMessage] = useState("");
+  const [confirmType, setConfirmType] = useState<"STATUS" | "DELETE_BILL" | "DELETE_PAYMENT">("STATUS");
+  const [confirmColor, setConfirmColor] = useState<"primary" | "error">("primary");
+  const [confirmActionText, setConfirmActionText] = useState("Yes, Confirm");
+
+  // Pending Actions Data
   const [pendingStatusToggle, setPendingStatusToggle] = useState<{ bill: Bill; newStatus: number } | null>(null);
+  const [pendingDeleteBillId, setPendingDeleteBillId] = useState<number | null>(null);
+  const [pendingDeletePaymentId, setPendingDeletePaymentId] = useState<number | null>(null);
   const [paymentsHistory, setPaymentsHistory] = useState<BillPayment[]>([]);
 
   const todayStr = new Date().toISOString().split("T")[0];
@@ -175,6 +183,8 @@ export const Bills: React.FC = () => {
   const handleCloseConfirm = () => {
     setIsConfirmOpen(false);
     setPendingStatusToggle(null);
+    setPendingDeleteBillId(null);
+    setPendingDeletePaymentId(null);
   };
 
   // Open / Close Payment Modal
@@ -359,19 +369,28 @@ export const Bills: React.FC = () => {
   };
 
   // Delete a specific payment transaction and reverse it in the bill data
-  const handleDeletePayment = async (paymentId: number) => {
-    if (!selectedBill) return;
-    if (!window.confirm("Are you sure you want to delete this payment record? This will increase the customer's remaining balance.")) return;
+  const handleDeletePayment = (paymentId: number) => {
+    setPendingDeletePaymentId(paymentId);
+    setConfirmTitle("Are you sure?");
+    setConfirmMessage("Do you want to delete this payment record? This will increase the customer's remaining balance.");
+    setConfirmType("DELETE_PAYMENT");
+    setConfirmColor("error");
+    setConfirmActionText("Yes, Delete");
+    setIsConfirmOpen(true);
+  };
 
+  const handleConfirmDeletePayment = async () => {
+    if (pendingDeletePaymentId === null || !selectedBill) return;
+    setSaving(true);
     try {
-      const res = await fetch(`${apiBase}/${selectedBill.id}/payments/${paymentId}`, {
+      const res = await fetch(`${apiBase}/${selectedBill.id}/payments/${pendingDeletePaymentId}`, {
         method: "DELETE"
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Failed to delete payment record");
 
       // Update local history modal list
-      setPaymentsHistory(prev => prev.filter(p => p.id !== paymentId));
+      setPaymentsHistory(prev => prev.filter(p => p.id !== pendingDeletePaymentId));
 
       // Sync backend bill update to the list table
       setBills(prev => prev.map(b => (b.id === selectedBill.id ? data : b)));
@@ -380,20 +399,61 @@ export const Bills: React.FC = () => {
       setSelectedBill(data);
 
       dispatch(showToast({ message: "Payment log deleted successfully!", severity: "success" }));
+      handleCloseConfirm();
     } catch (err: any) {
       dispatch(showToast({ message: err.message || "Error deleting payment", severity: "error" }));
+    } finally {
+      setSaving(false);
+      setPendingDeletePaymentId(null);
     }
   };
 
-  // Checkbox Quick toggle handler (Opens Custom Confirm Dialog)
+  // Delete a specific bill (deletes either Kartar or Class bill)
+  const handleDeleteBill = (billId: number) => {
+    setPendingDeleteBillId(billId);
+    setConfirmTitle("Are you sure?");
+    setConfirmMessage(`Do you want to permanently delete this ${activeTab === "KARTAR" ? "Kartar" : "Class"} Bill? This will also delete all of its payment history and cannot be undone.`);
+    setConfirmType("DELETE_BILL");
+    setConfirmColor("error");
+    setConfirmActionText("Yes, Delete");
+    setIsConfirmOpen(true);
+  };
+
+  const handleConfirmDeleteBill = async () => {
+    if (pendingDeleteBillId === null) return;
+    setSaving(true);
+    try {
+      const res = await fetch(`${apiBase}/${pendingDeleteBillId}`, {
+        method: "DELETE"
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to delete bill");
+
+      // Remove from list
+      setBills(prev => prev.filter(b => b.id !== pendingDeleteBillId));
+
+      dispatch(showToast({ message: "Bill deleted successfully!", severity: "success" }));
+      handleCloseConfirm();
+    } catch (err: any) {
+      dispatch(showToast({ message: err.message || "Error deleting bill", severity: "error" }));
+    } finally {
+      setSaving(false);
+      setPendingDeleteBillId(null);
+    }
+  };
+
   const handleStatusToggle = (bill: Bill) => {
     const newStatus = bill.status === 0 ? 1 : 0;
     const msg = newStatus === 1
-      ? `Are you sure you want to mark the bill of customer "${bill.customerName}" as Completed?`
-      : `Are you sure you want to change the status of customer "${bill.customerName}" back to Pending?`;
-
-    setConfirmMessage(msg);
+      ? `Do you want to mark the bill of customer "${bill.customerName}" as Completed?`
+      : `Do you want to change the status of customer "${bill.customerName}" back to Pending?`;
+ 
     setPendingStatusToggle({ bill, newStatus });
+    setConfirmTitle("Are you sure?");
+    setConfirmMessage(msg);
+    setConfirmType("STATUS");
+    setConfirmColor("primary");
+    setConfirmActionText("Yes, Confirm");
     setIsConfirmOpen(true);
   };
 
@@ -421,6 +481,16 @@ export const Bills: React.FC = () => {
       dispatch(showToast({ message: err.message || "Error toggling status", severity: "error" }));
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleConfirmSubmit = () => {
+    if (confirmType === "STATUS") {
+      handleConfirmStatusToggle();
+    } else if (confirmType === "DELETE_BILL") {
+      handleConfirmDeleteBill();
+    } else if (confirmType === "DELETE_PAYMENT") {
+      handleConfirmDeletePayment();
     }
   };
 
@@ -569,6 +639,11 @@ export const Bills: React.FC = () => {
                             <Tooltip title="Edit Bill" arrow>
                               <IconButton size="small" color="primary" onClick={() => handleOpenEdit(bill)}>
                                 <Edit size={16} />
+                              </IconButton>
+                            </Tooltip>
+                            <Tooltip title="Delete Bill" arrow>
+                              <IconButton size="small" color="error" onClick={() => handleDeleteBill(bill.id)}>
+                                <Trash2 size={16} />
                               </IconButton>
                             </Tooltip>
                           </Box>
@@ -723,7 +798,7 @@ export const Bills: React.FC = () => {
 
       {/* Confirmation Custom Dialog Modal */}
       <Dialog open={isConfirmOpen} onClose={handleCloseConfirm} maxWidth="xs" fullWidth>
-        <DialogTitle sx={{ fontWeight: 800, pb: 1 }}>Confirm Status Change</DialogTitle>
+        <DialogTitle sx={{ fontWeight: 800, pb: 1 }}>{confirmTitle}</DialogTitle>
         <DialogContent dividers sx={{ py: 3.5 }}>
           <Typography variant="body1" sx={{ color: "text.primary" }}>
             {confirmMessage}
@@ -731,8 +806,8 @@ export const Bills: React.FC = () => {
         </DialogContent>
         <DialogActions sx={{ p: 2.5 }}>
           <Button onClick={handleCloseConfirm} color="inherit">Cancel</Button>
-          <Button onClick={handleConfirmStatusToggle} variant="contained" color="primary" autoFocus disabled={saving}>
-            {saving ? "Updating..." : "Yes, Confirm"}
+          <Button onClick={handleConfirmSubmit} variant="contained" color={confirmColor} autoFocus disabled={saving}>
+            {saving ? "Processing..." : confirmActionText}
           </Button>
         </DialogActions>
       </Dialog>
