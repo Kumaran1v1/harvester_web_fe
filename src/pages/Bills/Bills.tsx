@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from "react";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs from "dayjs";
 import {
   Box, Card, Typography, Button, TextField, Dialog, DialogTitle,
   DialogContent, DialogActions, Table, TableBody, TableCell,
@@ -37,7 +41,7 @@ export const Bills: React.FC = () => {
   const [loading, setLoading] = useState(true);
   
   // Tab control: "CLASS" or "KARTAR"
-  const [activeTab, setActiveTab] = useState<"CLASS" | "KARTAR">("CLASS");
+  const [activeTab, setActiveTab] = useState<"CLASS" | "KARTAR">("KARTAR");
 
   // Search & Pagination states
   const [searchQuery, setSearchQuery] = useState("");
@@ -450,8 +454,8 @@ export const Bills: React.FC = () => {
           "& .MuiTab-root": { fontWeight: 700, fontSize: { xs: "13px", sm: "14px" } }
         }}
       >
-        <Tab value="CLASS" label="Class Bills" />
         <Tab value="KARTAR" label="Kartar Bills" />
+        <Tab value="CLASS" label="Class Bills" />
       </Tabs>
 
       {/* Action Bar: Search Input */}
@@ -511,7 +515,7 @@ export const Bills: React.FC = () => {
                     const isCompleted = bill.status === 1;
                     return (
                       <TableRow key={bill.id} hover>
-                        <TableCell>{new Date(bill.date).toLocaleDateString()}</TableCell>
+                        <TableCell>{new Date(bill.date).toLocaleDateString("en-IN")}</TableCell>
                         <TableCell>{bill.place}</TableCell>
                         <TableCell sx={{ fontWeight: 700, color: isCompleted ? "success.main" : "error.main" }}>
                           {bill.customerName}
@@ -600,7 +604,25 @@ export const Bills: React.FC = () => {
           <DialogContent dividers sx={{ p: 3 }}>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
-                <TextField label="Date" type="date" name="date" fullWidth required InputLabelProps={{ shrink: true }} inputProps={{ max: todayStr }} value={createForm.date} onChange={handleCreateChange} />
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    label="Date"
+                    value={dayjs(createForm.date)}
+                    onChange={(newValue) => {
+                      if (newValue) {
+                        setCreateForm(prev => ({ ...prev, date: newValue.format("YYYY-MM-DD") }));
+                      }
+                    }}
+                    maxDate={dayjs(todayStr)}
+                    format="DD/MM/YYYY"
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        required: true
+                      }
+                    }}
+                  />
+                </LocalizationProvider>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField label="Place" name="place" fullWidth required value={createForm.place} onChange={handleCreateChange} />
@@ -644,7 +666,25 @@ export const Bills: React.FC = () => {
           <DialogContent dividers sx={{ p: 3 }}>
             <Grid container spacing={2}>
               <Grid item xs={12} sm={6}>
-                <TextField label="Date" type="date" name="date" fullWidth required InputLabelProps={{ shrink: true }} inputProps={{ max: todayStr }} value={editForm.date} onChange={handleEditChange} />
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    label="Date"
+                    value={dayjs(editForm.date)}
+                    onChange={(newValue) => {
+                      if (newValue) {
+                        setEditForm(prev => ({ ...prev, date: newValue.format("YYYY-MM-DD") }));
+                      }
+                    }}
+                    maxDate={dayjs(todayStr)}
+                    format="DD/MM/YYYY"
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        required: true
+                      }
+                    }}
+                  />
+                </LocalizationProvider>
               </Grid>
               <Grid item xs={12} sm={6}>
                 <TextField label="Place" name="place" fullWidth required value={editForm.place} onChange={handleEditChange} />
@@ -757,7 +797,7 @@ export const Bills: React.FC = () => {
                 <TableBody>
                   {paymentsHistory.map((pmt) => (
                     <TableRow key={pmt.id} hover>
-                      <TableCell>{new Date(pmt.paymentDate).toLocaleDateString()}</TableCell>
+                      <TableCell>{new Date(pmt.paymentDate).toLocaleDateString("en-IN")}</TableCell>
                       <TableCell sx={{ fontWeight: 700, color: "success.main" }}>
                         ₹{Number(pmt.amount).toLocaleString()}
                       </TableCell>

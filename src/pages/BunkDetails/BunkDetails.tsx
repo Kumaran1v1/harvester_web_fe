@@ -1,10 +1,15 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs from "dayjs";
 import {
   Box, Card, Typography, Button, TextField, Paper, CircularProgress,
   IconButton, Tooltip, Grid, Chip, Divider, Dialog, DialogTitle,
   DialogContent, DialogActions
 } from "@mui/material";
-import { Fuel, Plus, Trash2, CheckCircle2, Clock, CalendarDays, ChevronLeft, ChevronRight, Wallet, DollarSign, ArrowRight } from "lucide-react";
+import { Fuel, Plus, Trash2, CheckCircle2, Clock, CalendarDays, ChevronLeft, ChevronRight, Wallet, DollarSign, ArrowRight, FileDown } from "lucide-react";
+import html2pdf from "html2pdf.js";
 import { useDispatch } from "react-redux";
 import { showToast } from "../../redux/toast/toastSlice";
 
@@ -18,6 +23,7 @@ interface PaymentItem {
   id: string;
   amount: number;
   time: string;
+  remarks?: string;
 }
 
 interface FuelRecord {
@@ -51,6 +57,20 @@ export const BunkDetails: React.FC = () => {
   // Form Inputs for Adding a Payment
   const [newPaymentAmt, setNewPaymentAmt] = useState("");
   const [newPaymentTime, setNewPaymentTime] = useState(getCurrentTimeString());
+
+  // Bulk payment modal states
+  const [isBulkPaymentOpen, setIsBulkPaymentOpen] = useState(false);
+  const [bulkPaymentAmt, setBulkPaymentAmt] = useState("");
+  const [bulkPaymentRemarks, setBulkPaymentRemarks] = useState("");
+
+  // PDF Report modal states
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+  const [reportFromDate, setReportFromDate] = useState(() => {
+    const d = new Date();
+    d.setDate(d.getDate() - 30);
+    return d.toISOString().split("T")[0];
+  });
+  const [reportToDate, setReportToDate] = useState(todayStr);
 
   const fetchRecords = async () => {
     try {
@@ -103,6 +123,10 @@ export const BunkDetails: React.FC = () => {
   const totalPayments = useMemo(() => activePayments.reduce((sum, p) => sum + p.amount, 0), [activePayments]);
   const pendingBalance = Math.max(0, totalPurchases - totalPayments);
   const isFullyPaid = pendingBalance === 0;
+
+  const overallPendingBalance = useMemo(() => {
+    return records.reduce((sum, r) => sum + Number(r.balance || 0), 0);
+  }, [records]);
 
   // Save / Sync Record Helper
   const syncRecord = async (updatedPurchases: PurchaseItem[], updatedPayments: PaymentItem[]) => {
@@ -226,6 +250,252 @@ export const BunkDetails: React.FC = () => {
     setNewPaymentAmt(pendingBalance.toString());
   };
 
+  const handleDownloadReport = () => {
+    // Filter and sort records in date range
+    const filteredRecords = records
+      .filter((r) => {
+        const rDateStr = new Date(r.date).toISOString().split("T")[0];
+        return rDateStr >= reportFromDate && rDateStr <= reportToDate;
+      })
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    if (filteredRecords.length === 0) {
+      dispatch(showToast({ message: "No records found in selected date range.", severity: "warning" }));
+      return;
+    }
+
+    // Calculate summary stats
+    let totalPurchased = 0;
+    let totalPaid = 0;
+    let totalPending = 0;
+
+    interface BulkGroup {
+      bulkAmountLabel: string;
+      time: string;
+      notes: string;
+      splits: { dateStr: string; amount: number }[];
+    }
+    const bulkGroups: { [key: string]: BulkGroup } = {};
+
+    const tableRows = filteredRecords.map((r) => {
+      totalPurchased += Number(r.fuelAmount || 0);
+      totalPaid += Number(r.paidAmount || 0);
+      totalPending += Number(r.balance || 0);
+
+      const dateStr = new Date(r.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+      
+      // Purchases JSON parsing
+      let purchases: PurchaseItem[] = [];
+      if (r.purchasesJson) {
+        try { purchases = JSON.parse(r.purchasesJson); } catch (e) {}
+      }
+      let purchasesStr = "";
+      if (purchases.length > 0) {
+        const listStr = purchases.map(p => `₹${p.amount.toLocaleString()} (${p.time})`).join("<br/>");
+        if (purchases.length >= 2) {
+          const sum = purchases.reduce((s, p) => s + p.amount, 0);
+          purchasesStr = `${listStr}<div style="border-top:1px dashed #cbd5e1;margin-top:4px;padding-top:2px;font-weight:700;font-size:11px;color:#475569;">Total: ₹${sum.toLocaleString()}</div>`;
+        } else {
+          purchasesStr = listStr;
+        }
+      } else {
+        purchasesStr = `₹${Number(r.fuelAmount || 0).toLocaleString()}`;
+      }
+
+      // Payments JSON parsing
+      let payments: (PaymentItem & { remarks?: string })[] = [];
+      if (r.paymentsJson) {
+        try { payments = JSON.parse(r.paymentsJson); } catch (e) {}
+      }
+      let paymentsStr = "";
+      if (payments.length > 0) {
+        const listStr = payments.map(p => {
+          const label = p.remarks ? p.remarks : "Single Entry";
+          return `₹${p.amount.toLocaleString()} (${p.time}) - <em>${label}</em>`;
+        }).join("<br/>");
+        if (payments.length >= 2) {
+          const sum = payments.reduce((s, p) => s + p.amount, 0);
+          paymentsStr = `${listStr}<div style="border-top:1px dashed #cbd5e1;margin-top:4px;padding-top:2px;font-weight:700;font-size:11px;color:#16a34a;">Total: ₹${sum.toLocaleString()}</div>`;
+        } else {
+          paymentsStr = listStr;
+        }
+      } else {
+        paymentsStr = Number(r.paidAmount || 0) > 0 ? `₹${Number(r.paidAmount || 0).toLocaleString()}` : "—";
+      }
+
+      // Extract bulk payment splits for the audit log
+      payments.forEach((p) => {
+        if (p.remarks && p.remarks.includes("Bulk Payment (FIFO)")) {
+          const match = p.remarks.match(/\[split from ([\w₹,.]+)\]/);
+          const bulkAmt = match ? match[1] : "Unknown";
+          
+          let notes = "";
+          const notesIndex = p.remarks.indexOf("] - ");
+          if (notesIndex !== -1) {
+            notes = p.remarks.substring(notesIndex + 4);
+          } else if (p.remarks.indexOf("]") === -1) {
+            notes = p.remarks.replace("Bulk Payment (FIFO)", "").trim();
+          }
+
+          const groupKey = `${p.time}_${bulkAmt}_${notes}`;
+
+          if (!bulkGroups[groupKey]) {
+            bulkGroups[groupKey] = {
+              bulkAmountLabel: bulkAmt,
+              time: p.time,
+              notes: notes || "Lump-sum",
+              splits: []
+            };
+          }
+          bulkGroups[groupKey].splits.push({
+            dateStr,
+            amount: p.amount
+          });
+        }
+      });
+
+      const balanceStr = Number(r.balance || 0) > 0 
+        ? `<strong style="color: #ef4444;">₹${Number(r.balance).toLocaleString()}</strong>`
+        : `<span style="color: #10b981; font-weight: 700;">Fully Paid</span>`;
+
+      return `
+        <tr style="border-bottom:1px solid #e2e8f0; font-size:12px;">
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:top;font-weight:600;">${dateStr}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:top;line-height:1.5;">${purchasesStr}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:top;line-height:1.5;">${paymentsStr}</td>
+          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:top;text-align:right;">${balanceStr}</td>
+        </tr>
+      `;
+    }).join("");
+
+    let bulkPaymentsLogHtml = "";
+    const bulkGroupKeys = Object.keys(bulkGroups);
+    if (bulkGroupKeys.length > 0) {
+      const logRows = bulkGroupKeys.map((key) => {
+        const group = bulkGroups[key];
+        const splitsList = group.splits.map(s => {
+          return `<span style="display:inline-block;background:#f1f5f9;color:#334155;padding:4px 8px;border-radius:4px;font-size:10px;margin-right:6px;margin-bottom:6px;font-weight:600;">${s.dateStr}: ₹${s.amount.toLocaleString()}</span>`;
+        }).join("");
+
+        return `
+          <div style="padding:12px;border:1px dashed #cbd5e1;border-radius:6px;margin-bottom:12px;background:#fafafa;">
+            <div style="display:flex;justify-content:space-between;font-weight:800;color:#0f172a;font-size:11px;margin-bottom:8px;">
+              <span>Bulk Payment: ${group.bulkAmountLabel} (${group.time})</span>
+              <span style="color:#64748b;font-weight:600;font-size:10px;">Note: ${group.notes}</span>
+            </div>
+            <div style="font-size:10px;color:#64748b;margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Split Distribution:</div>
+            <div>${splitsList}</div>
+          </div>
+        `;
+      }).join("");
+
+      bulkPaymentsLogHtml = `
+        <div style="margin-top:28px;border-top:2px solid #cbd5e1;padding-top:16px;">
+          <h2 style="font-size:12px;font-weight:900;color:#0f172a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;margin-top:0;">Bulk Payments Audit Log</h2>
+          ${logRows}
+        </div>
+      `;
+    }
+
+    const fromDateFormatted = new Date(reportFromDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+    const toDateFormatted = new Date(reportToDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+
+    const html = `
+      <div style="font-family:'Inter',Arial,sans-serif;padding:32px;max-width:800px;margin:auto;color:#1e293b;">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;border-bottom:2px solid #e2e8f0;padding-bottom:16px;">
+          <div>
+            <h1 style="margin:0;font-size:22px;font-weight:900;color:#0f172a;letter-spacing:-0.5px;">Bunk Refuel & Payment Statement</h1>
+            <p style="margin:6px 0 0;color:#64748b;font-size:13px;font-weight:600;">Date Range: ${fromDateFormatted} to ${toDateFormatted}</p>
+          </div>
+          <div style="text-align:right;">
+            <p style="margin:0;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:0.5px;font-weight:700;">Generated On</p>
+            <strong style="font-size:13px;color:#0f172a;">${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}</strong>
+          </div>
+        </div>
+
+        <div style="display:flex;gap:16px;margin-bottom:32px;">
+          <div style="flex:1;background:#eff6ff;border-radius:8px;padding:14px;border:1px solid #dbeafe;text-align:center;">
+            <div style="font-size:10px;color:#2563eb;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Total Purchases</div>
+            <div style="font-size:22px;font-weight:900;color:#1e40af;margin-top:4px;">₹${totalPurchased.toLocaleString()}</div>
+          </div>
+          <div style="flex:1;background:#f0fdf4;border-radius:8px;padding:14px;border:1px solid #dcfce7;text-align:center;">
+            <div style="font-size:10px;color:#16a34a;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Total Paid to Bunk</div>
+            <div style="font-size:22px;font-weight:900;color:#14532d;margin-top:4px;">₹${totalPaid.toLocaleString()}</div>
+          </div>
+          <div style="flex:1;background:#fef2f2;border-radius:8px;padding:14px;border:1px solid #fee2e2;text-align:center;">
+            <div style="font-size:10px;color:#dc2626;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Overall Pending</div>
+            <div style="font-size:22px;font-weight:900;color:#7f1d1d;margin-top:4px;">₹${totalPending.toLocaleString()}</div>
+          </div>
+        </div>
+
+        <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px;">
+          <thead>
+            <tr style="background:#f8fafc;border-bottom:2px solid #cbd5e1;">
+              <th style="padding:12px 10px;text-align:left;font-size:11px;color:#475569;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;width:15%;">Date</th>
+              <th style="padding:12px 10px;text-align:left;font-size:11px;color:#475569;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;width:35%;">Diesel Purchases</th>
+              <th style="padding:12px 10px;text-align:left;font-size:11px;color:#475569;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;width:35%;">Payments History</th>
+              <th style="padding:12px 10px;text-align:right;font-size:11px;color:#475569;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;width:15%;">Balance Due</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${tableRows}
+          </tbody>
+        </table>
+
+        ${bulkPaymentsLogHtml}
+      </div>
+    `;
+
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    document.body.appendChild(container);
+
+    html2pdf()
+      .set({
+        margin: 10,
+        filename: `Bunk_Statement_${reportFromDate}_to_${reportToDate}.pdf`,
+        image: { type: "jpeg", quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+      })
+      .from(container)
+      .save()
+      .then(() => {
+        document.body.removeChild(container);
+        setIsReportModalOpen(false);
+      });
+  };
+
+  const handleBulkPaymentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    const amountVal = parseFloat(bulkPaymentAmt);
+    if (isNaN(amountVal) || amountVal <= 0) {
+      dispatch(showToast({ message: "Please enter a valid payment amount", severity: "error" }));
+      return;
+    }
+
+    setSaving(true);
+    try {
+      const res = await fetch("/api/bunk-details/bulk-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ amount: amountVal, remarks: bulkPaymentRemarks })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Failed to process bulk payment");
+
+      dispatch(showToast({ message: data.message || "Bulk payment processed successfully", severity: "success" }));
+      setIsBulkPaymentOpen(false);
+      setBulkPaymentAmt("");
+      setBulkPaymentRemarks("");
+      fetchRecords(); // re-fetch all records to update UI
+    } catch (err: any) {
+      dispatch(showToast({ message: err.message || "Error processing bulk payment", severity: "error" }));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   // Date Shift Handlers
   const handleDateChange = (newDateStr: string) => {
     if (newDateStr > todayStr) {
@@ -268,35 +538,66 @@ export const BunkDetails: React.FC = () => {
           </Box>
         </Box>
 
-        {/* Date Selector Navigation Bar */}
-        <Paper sx={{ p: 0.8, px: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, borderRadius: 3, bgcolor: "background.paper", border: "1px solid rgba(255,255,255,0.08)" }}>
-          <IconButton size="small" onClick={handlePrevDay}>
-            <ChevronLeft size={20} />
-          </IconButton>
+        {/* Date Selector & Report Button */}
+        <Box display="flex" alignItems="center" gap={1.5} sx={{ alignSelf: { xs: "stretch", sm: "auto" }, width: { xs: "100%", sm: "auto" }, justifyContent: { xs: "space-between", sm: "flex-end" }, flexWrap: "wrap" }}>
+          <Button
+            variant="outlined"
+            color="primary"
+            startIcon={<FileDown size={18} />}
+            onClick={() => setIsReportModalOpen(true)}
+            sx={{ fontWeight: 805, borderRadius: 3, py: 0.9, px: 2, textTransform: "none", fontSize: "0.85rem" }}
+          >
+            PDF Report
+          </Button>
 
-          <Box display="flex" alignItems="center" gap={0.5}>
-            <CalendarDays size={18} style={{ color: "#2dd4bf" }} />
-            <TextField
-              type="date"
-              size="small"
-              variant="standard"
-              InputProps={{ disableUnderline: true, inputProps: { max: todayStr } }}
-              value={selectedDate}
-              onChange={(e) => handleDateChange(e.target.value)}
-              sx={{ input: { fontWeight: 800, fontSize: "0.88rem", color: "text.primary", cursor: "pointer", p: 0 } }}
-            />
-          </Box>
+          <Paper sx={{ p: 0.8, px: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, borderRadius: 3, bgcolor: "background.paper", border: "1px solid rgba(255,255,255,0.08)", flexGrow: { xs: 1, sm: 0 } }}>
+            <IconButton size="small" onClick={handlePrevDay}>
+              <ChevronLeft size={20} />
+            </IconButton>
 
-          <IconButton size="small" onClick={handleNextDay} disabled={selectedDate >= todayStr}>
-            <ChevronRight size={20} />
-          </IconButton>
+            <Box display="flex" alignItems="center" gap={0.5}>
+              <CalendarDays size={18} style={{ color: "#2dd4bf" }} />
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  value={dayjs(selectedDate)}
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      handleDateChange(newValue.format("YYYY-MM-DD"));
+                    }
+                  }}
+                  maxDate={dayjs(todayStr)}
+                  format="DD/MM/YYYY"
+                  slotProps={{
+                    textField: {
+                      variant: "standard",
+                      InputProps: { disableUnderline: true },
+                      sx: {
+                        input: {
+                          fontWeight: 800,
+                          fontSize: "0.88rem",
+                          color: "text.primary",
+                          cursor: "pointer",
+                          p: 0,
+                          width: 95
+                        }
+                      }
+                    }
+                  }}
+                />
+              </LocalizationProvider>
+            </Box>
 
-          {selectedDate !== todayStr && (
-            <Button size="small" variant="outlined" color="primary" onClick={() => setSelectedDate(todayStr)} sx={{ py: 0.2, px: 1, fontSize: "10px", fontWeight: 700, minWidth: "auto" }}>
-              Today
-            </Button>
-          )}
-        </Paper>
+            <IconButton size="small" onClick={handleNextDay} disabled={selectedDate >= todayStr}>
+              <ChevronRight size={20} />
+            </IconButton>
+
+            {selectedDate !== todayStr && (
+              <Button size="small" variant="outlined" color="primary" onClick={() => setSelectedDate(todayStr)} sx={{ py: 0.2, px: 1, fontSize: "10px", fontWeight: 700, minWidth: "auto" }}>
+                Today
+              </Button>
+            )}
+          </Paper>
+        </Box>
       </Box>
 
       {loading ? (
@@ -328,34 +629,57 @@ export const BunkDetails: React.FC = () => {
 
             {/* Stats Row Banner */}
             <Grid container spacing={1.5}>
-              <Grid item xs={12} sm={4}>
-                <Box sx={{ p: 1.8, borderRadius: 2.5, bgcolor: "rgba(13, 148, 136, 0.08)", border: "1px solid rgba(13, 148, 136, 0.15)" }}>
+              <Grid item xs={12} sm={3}>
+                <Box sx={{ p: 1.8, borderRadius: 2.5, bgcolor: "rgba(13, 148, 136, 0.08)", border: "1px solid rgba(13, 148, 136, 0.15)", minHeight: "96px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, fontSize: "11px" }}>
                     Total Diesel Purchased
                   </Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 900, color: "text.primary", mt: 0.5, fontSize: { xs: "1.3rem", sm: "1.5rem" } }}>
+                  <Typography variant="h5" sx={{ fontWeight: 900, color: "text.primary", mt: 0.5, fontSize: { xs: "1.2rem", sm: "1.35rem" } }}>
                     ₹{totalPurchases.toLocaleString()}
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} sm={4}>
-                <Box sx={{ p: 1.8, borderRadius: 2.5, bgcolor: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.15)" }}>
+              <Grid item xs={12} sm={3}>
+                <Box sx={{ p: 1.8, borderRadius: 2.5, bgcolor: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.15)", minHeight: "96px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, fontSize: "11px" }}>
                     Total Paid to Bunk
                   </Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 900, color: "#10b981", mt: 0.5, fontSize: { xs: "1.3rem", sm: "1.5rem" } }}>
+                  <Typography variant="h5" sx={{ fontWeight: 900, color: "#10b981", mt: 0.5, fontSize: { xs: "1.2rem", sm: "1.35rem" } }}>
                     ₹{totalPayments.toLocaleString()}
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} sm={4}>
-                <Box sx={{ p: 1.8, borderRadius: 2.5, bgcolor: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.15)" }}>
+              <Grid item xs={12} sm={3}>
+                <Box sx={{ p: 1.8, borderRadius: 2.5, bgcolor: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.15)", minHeight: "96px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, fontSize: "11px" }}>
                     Pending Balance Due
                   </Typography>
-                  <Typography variant="h5" sx={{ fontWeight: 900, color: pendingBalance > 0 ? "#f59e0b" : "#10b981", mt: 0.5, fontSize: { xs: "1.3rem", sm: "1.5rem" } }}>
+                  <Typography variant="h5" sx={{ fontWeight: 900, color: pendingBalance > 0 ? "#f59e0b" : "#10b981", mt: 0.5, fontSize: { xs: "1.2rem", sm: "1.35rem" } }}>
                     ₹{pendingBalance.toLocaleString()}
                   </Typography>
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={3}>
+                <Box sx={{ p: 1.8, borderRadius: 2.5, bgcolor: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.15)", minHeight: "96px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, fontSize: "11px" }}>
+                      Overall Pending Balance
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 900, mt: 0.5, color: "#ef4444", fontSize: { xs: "1.2rem", sm: "1.35rem" } }}>
+                      ₹{overallPendingBalance.toLocaleString()}
+                    </Typography>
+                  </Box>
+                  {overallPendingBalance > 0 && (
+                    <Button
+                      variant="contained"
+                      color="error"
+                      size="small"
+                      onClick={() => setIsBulkPaymentOpen(true)}
+                      sx={{ mt: 1, py: 0.2, fontSize: "10px", fontWeight: 800, textTransform: "none", width: "100%" }}
+                    >
+                      Clear Debt (FIFO)
+                    </Button>
+                  )}
                 </Box>
               </Grid>
             </Grid>
@@ -475,7 +799,14 @@ export const BunkDetails: React.FC = () => {
                       <Box key={pmt.id} display="flex" justifyContent="space-between" alignItems="center" sx={{ p: 1.5, px: 2, mb: 1.2, borderRadius: 2.5, bgcolor: "background.paper", border: "1px solid rgba(16, 185, 129, 0.15)" }}>
                         <Box display="flex" alignItems="center" gap={1.5}>
                           <Clock size={16} style={{ color: "#10b981" }} />
-                          <Typography variant="body2" sx={{ fontWeight: 700 }}>{pmt.time}</Typography>
+                          <Box>
+                            <Typography variant="body2" sx={{ fontWeight: 700 }}>{pmt.time}</Typography>
+                            {pmt.remarks && (
+                              <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: "10px", mt: 0.2, fontWeight: 600 }}>
+                                {pmt.remarks}
+                              </Typography>
+                            )}
+                          </Box>
                         </Box>
                         <Box display="flex" alignItems="center" gap={2}>
                           <Typography variant="subtitle1" sx={{ fontWeight: 900, color: "#10b981" }}>
@@ -539,6 +870,117 @@ export const BunkDetails: React.FC = () => {
           </Grid>
         </Card>
       )}
+
+      {/* Date Range Report Selector Modal */}
+      <Dialog open={isReportModalOpen} onClose={() => setIsReportModalOpen(false)} fullWidth maxWidth="xs">
+        <DialogTitle sx={{ fontWeight: 800 }}>
+          Export Bunk Report
+        </DialogTitle>
+        <DialogContent dividers sx={{ p: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2.5, fontWeight: 500 }}>
+            Choose a date range to generate and download the refuel and payment history statement report in PDF format.
+          </Typography>
+          <Grid container spacing={2.5}>
+            <Grid item xs={12} sm={6}>
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="From Date"
+                  value={dayjs(reportFromDate)}
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      setReportFromDate(newValue.format("YYYY-MM-DD"));
+                    }
+                  }}
+                  format="DD/MM/YYYY"
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: "small"
+                    }
+                  }}
+                />
+              </LocalizationProvider>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="To Date"
+                  value={dayjs(reportToDate)}
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      setReportToDate(newValue.format("YYYY-MM-DD"));
+                    }
+                  }}
+                  format="DD/MM/YYYY"
+                  slotProps={{
+                    textField: {
+                      fullWidth: true,
+                      size: "small"
+                    }
+                  }}
+                />
+              </LocalizationProvider>
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions sx={{ p: 2.5 }}>
+          <Button onClick={() => setIsReportModalOpen(false)} color="inherit">
+            Cancel
+          </Button>
+          <Button onClick={handleDownloadReport} variant="contained" color="primary">
+            Download PDF
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* FIFO Bulk Payment Dialog Modal */}
+      <Dialog open={isBulkPaymentOpen} onClose={() => setIsBulkPaymentOpen(false)} fullWidth maxWidth="xs">
+        <form onSubmit={handleBulkPaymentSubmit}>
+          <DialogTitle sx={{ fontWeight: 800 }}>
+            Overall Bunk Payment (FIFO)
+          </DialogTitle>
+          <DialogContent dividers sx={{ p: 3 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 600 }}>
+              Enter a lump-sum payment amount. This will automatically distribute to your pending daily bunk sheets starting from the oldest date (FIFO order).
+            </Typography>
+            <Grid container spacing={2.5}>
+              <Grid item xs={12}>
+                <TextField
+                  label="Payment Amount (₹)"
+                  type="number"
+                  fullWidth
+                  required
+                  value={bulkPaymentAmt}
+                  onChange={(e) => setBulkPaymentAmt(e.target.value)}
+                  inputProps={{ step: "any", min: "0.01" }}
+                  placeholder="Enter lump-sum payment amount..."
+                  autoFocus
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  label="Remarks / Payment Notes"
+                  name="remarks"
+                  fullWidth
+                  multiline
+                  rows={2}
+                  value={bulkPaymentRemarks}
+                  onChange={(e) => setBulkPaymentRemarks(e.target.value)}
+                  placeholder="e.g. Cleared via Bank Transfer"
+                />
+              </Grid>
+            </Grid>
+          </DialogContent>
+          <DialogActions sx={{ p: 2.5 }}>
+            <Button onClick={() => setIsBulkPaymentOpen(false)} color="inherit">
+              Cancel
+            </Button>
+            <Button type="submit" variant="contained" color="error" disabled={saving}>
+              {saving ? "Processing..." : "Process Payment"}
+            </Button>
+          </DialogActions>
+        </form>
+      </Dialog>
 
       {/* Delete Entry Confirmation Dialog Modal */}
       <Dialog open={deleteModal.open} onClose={() => setDeleteModal(prev => ({ ...prev, open: false }))} fullWidth maxWidth="xs">

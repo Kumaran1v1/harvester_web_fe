@@ -65,7 +65,7 @@ export const PersonalDetails: React.FC = () => {
   // Upload Form State
   const [uploadForm, setUploadForm] = useState({
     title: "",
-    category: "RC_BOOK",
+    category: "PERSONAL",
     fileUrl: "",
     fileName: "",
     fileSize: "",
@@ -176,7 +176,7 @@ export const PersonalDetails: React.FC = () => {
   const handleOpenUpload = () => {
     setUploadForm({
       title: "",
-      category: "RC_BOOK",
+      category: "PERSONAL",
       fileUrl: "",
       fileName: "",
       fileSize: "",
@@ -262,6 +262,8 @@ export const PersonalDetails: React.FC = () => {
   // Helper for Category Formatting
   const getCategoryLabel = (cat: string) => {
     switch (cat) {
+      case "PERSONAL": return "Personal";
+      case "MACHINARY": return "Machinary";
       case "RC_BOOK": return "RC Book";
       case "INSURANCE": return "Insurance Policy";
       case "PERMIT": return "Operating Permit";
@@ -274,6 +276,8 @@ export const PersonalDetails: React.FC = () => {
 
   const getCategoryColor = (cat: string) => {
     switch (cat) {
+      case "PERSONAL": return "#3b82f6";
+      case "MACHINARY": return "#0d9488";
       case "RC_BOOK": return "#0d9488";
       case "INSURANCE": return "#3b82f6";
       case "PERMIT": return "#f59e0b";
@@ -310,16 +314,6 @@ export const PersonalDetails: React.FC = () => {
             In-depth owner details, company registration, harvester machine info, and document drive vault.
           </Typography>
         </Box>
-
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<Plus size={18} />}
-          onClick={handleOpenUpload}
-          sx={{ py: 1, px: 2.5, fontWeight: 700 }}
-        >
-          Upload Document to Drive
-        </Button>
       </Box>
 
       {/* Main Owner & Company Portfolio Card */}
@@ -446,42 +440,49 @@ export const PersonalDetails: React.FC = () => {
 
       {/* ── OWNER DOCUMENT DRIVE VAULT SECTION ── */}
       <Box sx={{ mb: 2 }}>
-        <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 2, flexWrap: "wrap", gap: 1 }}>
+        <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 2, flexWrap: "wrap", gap: 2 }}>
           <Typography variant="h6" sx={{ fontWeight: 800, display: "flex", alignItems: "center", gap: 1.5 }}>
             <HardDrive style={{ color: "#2dd4bf" }} />
             Owner Document Drive Vault ({documents.length})
           </Typography>
 
-          {/* Filter Chips */}
-          <Box display="flex" gap={1} flexWrap="wrap">
-            <Chip
-              label={`All (${documents.length})`}
-              color={categoryFilter === "ALL" ? "primary" : "default"}
+          {/* Filter Chips & Upload Button Row */}
+          <Box display="flex" alignItems="center" gap={2} flexWrap="wrap">
+            {/* Filter Chips */}
+            <Box display="flex" gap={1} flexWrap="wrap">
+              <Chip
+                label={`Over All (${documents.length})`}
+                color={categoryFilter === "ALL" ? "primary" : "default"}
+                size="small"
+                onClick={() => setCategoryFilter("ALL")}
+                sx={{ fontWeight: 700 }}
+              />
+              <Chip
+                label="Personal"
+                color={categoryFilter === "PERSONAL" ? "primary" : "default"}
+                size="small"
+                onClick={() => setCategoryFilter("PERSONAL")}
+                sx={{ fontWeight: 700 }}
+              />
+              <Chip
+                label="Machinary"
+                color={categoryFilter === "MACHINARY" ? "primary" : "default"}
+                size="small"
+                onClick={() => setCategoryFilter("MACHINARY")}
+                sx={{ fontWeight: 700 }}
+              />
+            </Box>
+
+            <Button
+              variant="contained"
+              color="primary"
               size="small"
-              onClick={() => setCategoryFilter("ALL")}
-              sx={{ fontWeight: 700 }}
-            />
-            <Chip
-              label="RC Book"
-              color={categoryFilter === "RC_BOOK" ? "primary" : "default"}
-              size="small"
-              onClick={() => setCategoryFilter("RC_BOOK")}
-              sx={{ fontWeight: 700 }}
-            />
-            <Chip
-              label="Insurance"
-              color={categoryFilter === "INSURANCE" ? "primary" : "default"}
-              size="small"
-              onClick={() => setCategoryFilter("INSURANCE")}
-              sx={{ fontWeight: 700 }}
-            />
-            <Chip
-              label="Permits"
-              color={categoryFilter === "PERMIT" ? "primary" : "default"}
-              size="small"
-              onClick={() => setCategoryFilter("PERMIT")}
-              sx={{ fontWeight: 700 }}
-            />
+              startIcon={<Plus size={16} />}
+              onClick={handleOpenUpload}
+              sx={{ fontWeight: 800, px: 2, py: 0.5, borderRadius: 2.5, textTransform: "none" }}
+            >
+              Upload Document
+            </Button>
           </Box>
         </Box>
 
@@ -496,7 +497,7 @@ export const PersonalDetails: React.FC = () => {
               No documents stored in Drive
             </Typography>
             <Typography variant="caption" color="text.secondary" display="block" sx={{ mb: 2 }}>
-              Upload your Machine RC Book, Insurance Policy, or Permits for safe cloud storage.
+              Upload your Personal details or Machinery documents for safe cloud storage.
             </Typography>
             <Button variant="outlined" color="primary" size="small" startIcon={<Plus size={16} />} onClick={handleOpenUpload} sx={{ fontWeight: 700 }}>
               Upload First Document
@@ -698,13 +699,8 @@ export const PersonalDetails: React.FC = () => {
                     label="Document Category"
                     onChange={(e) => setUploadForm(prev => ({ ...prev, category: e.target.value }))}
                   >
-                    <MenuItem value="RC_BOOK">RC Book (Machine Registration)</MenuItem>
-                    <MenuItem value="INSURANCE">Insurance Policy</MenuItem>
-                    <MenuItem value="PERMIT">Operating Permit / License</MenuItem>
-                    <MenuItem value="ID_PROOF">ID Proof (Aadhar / PAN)</MenuItem>
-                    <MenuItem value="TAX">Tax / Receipt</MenuItem>
-                    <MenuItem value="CONTRACT">Contract / Agreement</MenuItem>
-                    <MenuItem value="OTHER">Other Document</MenuItem>
+                    <MenuItem value="PERSONAL">Personal</MenuItem>
+                    <MenuItem value="MACHINARY">Machinary</MenuItem>
                   </Select>
                 </FormControl>
               </Grid>

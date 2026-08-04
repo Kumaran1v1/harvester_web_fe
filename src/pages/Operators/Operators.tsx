@@ -1,4 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs from "dayjs";
 import {
   Box, Card, Typography, Button, TextField, Dialog, DialogTitle,
   DialogContent, DialogActions, Table, TableBody, TableCell,
@@ -65,6 +69,33 @@ export const Operators: React.FC = () => {
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
   });
 
+  // Salary Month state for Salary & Wages Summary view (YYYY-MM format)
+  const [salaryMonth, setSalaryMonth] = useState<string>(() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+  });
+
+  const currentMonthStr = useMemo(() => {
+    const d = new Date();
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+  }, []);
+
+  const isCurrentSalaryMonth = salaryMonth === currentMonthStr;
+
+  const handleShiftSalaryMonth = (direction: number) => {
+    const [year, month] = salaryMonth.split("-").map(Number);
+    const d = new Date(year, month - 1 + direction, 1);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const targetMonthStr = `${d.getFullYear()}-${pad(d.getMonth() + 1)}`;
+    if (direction > 0 && targetMonthStr > currentMonthStr) {
+      dispatch(showToast({ message: "Cannot navigate to future month.", severity: "warning" }));
+      return;
+    }
+    setSalaryMonth(targetMonthStr);
+  };
+
   // Generate list of past 12 months for Select dropdown filter
   const monthDropdownOptions = useMemo(() => {
     const options = [];
@@ -79,6 +110,31 @@ export const Operators: React.FC = () => {
     }
     return options;
   }, []);
+
+  // Compute filtered operator summary statistics for the selected salaryMonth
+  const salaryMonthOperators = useMemo(() => {
+    return operators.map((op) => {
+      const monthAttendances = (op.attendances || []).filter(att => {
+        const attDateStr = new Date(att.date).toISOString().split("T")[0];
+        return attDateStr.substring(0, 7) === salaryMonth;
+      });
+
+      const presentDays = monthAttendances.filter(a => a.status === "PRESENT").length;
+      const absentDays = monthAttendances.filter(a => a.status === "ABSENT").length;
+      
+      const totalSalaryPaid = monthAttendances.reduce((sum, att) => {
+        return sum + (att.dailyWage !== null && att.dailyWage !== undefined ? Number(att.dailyWage) : 0);
+      }, 0);
+
+      return {
+        ...op,
+        presentDays,
+        absentDays,
+        totalSalaryPaid,
+        attendances: monthAttendances
+      };
+    });
+  }, [operators, salaryMonth]);
 
   // Search state for salary profiles
   const [searchQuery, setSearchQuery] = useState("");
@@ -432,6 +488,9 @@ export const Operators: React.FC = () => {
 
   const handleDownloadReport = (op: Operator) => {
     const totalPaid = Number(op.totalSalaryPaid ?? op.earnedSalary);
+    const matchedOption = monthDropdownOptions.find(opt => opt.value === salaryMonth);
+    const monthLabel = matchedOption ? matchedOption.label : salaryMonth;
+
     const rows = (op.attendances || []).map(att => {
       const dateStr = new Date(att.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
       const salary = att.dailyWage !== null && att.dailyWage !== undefined && att.dailyWage > 0
@@ -451,7 +510,7 @@ export const Operators: React.FC = () => {
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:24px;">
           <div>
             <h1 style="margin:0;font-size:22px;font-weight:800;color:#0f172a;">Operator Salary Report</h1>
-            <p style="margin:4px 0 0;color:#64748b;font-size:13px;">Generated on ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}</p>
+            <p style="margin:4px 0 0;color:#64748b;font-size:13px;">For Period: <strong>${monthLabel}</strong> | Generated on ${new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" })}</p>
           </div>
           <div style="text-align:right;">
             <div style="font-weight:700;font-size:16px;">${op.operatorName}</div>
@@ -584,35 +643,24 @@ export const Operators: React.FC = () => {
         <Box>
           {/* Header Controls: Compact Select Dropdown Filter (Week View vs Month View) */}
           <Box display="flex" alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between" sx={{ mb: 3, background: "rgba(255,255,255,0.03)", p: { xs: 1.5, sm: 2 }, borderRadius: 2.5, border: "1px solid rgba(255,255,255,0.08)", flexDirection: { xs: "column", sm: "row" }, gap: 1.5 }}>
-            {/* Month / View Select Dropdown Filter */}
-            <Box display="flex" alignItems="center" gap={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
-              <FormControl size="small" fullWidth sx={{ width: { xs: "100%", sm: 170 } }}>
-                <InputLabel id="attendance-filter-label" sx={{ fontWeight: 700 }}>View Filter</InputLabel>
-                <Select
-                  labelId="attendance-filter-label"
-                  label="View Filter"
-                  value={viewMode === "WEEK" ? "WEEK" : selectedMonth}
-                  onChange={(e) => {
-                    const val = e.target.value;
-                    if (val === "WEEK") {
-                      setViewMode("WEEK");
-                    } else {
-                      setViewMode("MONTH");
-                      setSelectedMonth(val);
-                    }
-                  }}
-                  sx={{ fontWeight: 800, "& .MuiSelect-select": { py: 0.8 } }}
+            {/* View Select Toggle Group */}
+            <Box display="flex" alignItems="center" sx={{ width: { xs: "100%", sm: "auto" } }}>
+              <ButtonGroup size="small" variant="outlined" color="primary" fullWidth sx={{ borderRadius: 2 }}>
+                <Button
+                  onClick={() => setViewMode("WEEK")}
+                  variant={viewMode === "WEEK" ? "contained" : "outlined"}
+                  sx={{ fontWeight: 800, textTransform: "none", py: 0.8 }}
                 >
-                  <MenuItem value="WEEK" sx={{ fontWeight: 700, fontSize: "13px", borderBottom: "1px dashed rgba(255, 255, 255, 0.15)", mb: 0.5 }}>
-                    Week View (7 Days)
-                  </MenuItem>
-                  {monthDropdownOptions.map((opt) => (
-                    <MenuItem key={opt.value} value={opt.value} sx={{ fontWeight: 700, fontSize: "13px" }}>
-                      {opt.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+                  Week View (7 Days)
+                </Button>
+                <Button
+                  onClick={() => setViewMode("MONTH")}
+                  variant={viewMode === "MONTH" ? "contained" : "outlined"}
+                  sx={{ fontWeight: 800, textTransform: "none", py: 0.8 }}
+                >
+                  Month View
+                </Button>
+              </ButtonGroup>
             </Box>
 
             {/* Date / Month Navigation Shift Controls */}
@@ -629,20 +677,39 @@ export const Operators: React.FC = () => {
                     <ChevronRight size={20} />
                   </IconButton>
                 </Box>
-                <TextField
-                  label="Selected Month"
-                  type="month"
-                  size="small"
-                  value={selectedMonth}
-                  onChange={(e) => {
-                    if (e.target.value) {
-                      setViewMode("MONTH");
-                      setSelectedMonth(e.target.value);
-                    }
-                  }}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ width: { xs: "100%", sm: 160 }, flex: { xs: 1, sm: "initial" } }}
-                />
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    label="Selected Month"
+                    views={["year", "month"]}
+                    value={dayjs(selectedMonth)}
+                    onChange={(newValue) => {
+                      if (newValue) {
+                        setViewMode("MONTH");
+                        setSelectedMonth(newValue.format("YYYY-MM"));
+                      }
+                    }}
+                    minDate={dayjs().subtract(2, "year").startOf("year")}
+                    maxDate={dayjs()}
+                    format="MMM YYYY"
+                    slotProps={{
+                      textField: {
+                        size: "small",
+                        sx: { width: { xs: "100%", sm: 160 }, flex: { xs: 1, sm: "initial" } }
+                      },
+                      popper: {
+                        placement: "bottom-end",
+                        modifiers: [
+                          {
+                            name: "preventOverflow",
+                            options: {
+                              boundary: "viewport"
+                            }
+                          }
+                        ]
+                      }
+                    }}
+                  />
+                </LocalizationProvider>
               </Box>
             ) : (
               <Box display="flex" alignItems="center" justifyContent={{ xs: "space-between", sm: "flex-end" }} gap={1} sx={{ width: { xs: "100%", sm: "auto" }, flexWrap: "wrap" }}>
@@ -657,15 +724,35 @@ export const Operators: React.FC = () => {
                     <ChevronRight size={20} />
                   </IconButton>
                 </Box>
-                <TextField
-                  label="Week Starting From"
-                  type="date"
-                  size="small"
-                  value={weekStart}
-                  onChange={(e) => setWeekStart(e.target.value)}
-                  InputLabelProps={{ shrink: true }}
-                  sx={{ width: { xs: "100%", sm: 160 }, flex: { xs: 1, sm: "initial" } }}
-                />
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    label="Week Starting From"
+                    value={dayjs(weekStart)}
+                    onChange={(newValue) => {
+                      if (newValue) {
+                        setWeekStart(newValue.format("YYYY-MM-DD"));
+                      }
+                    }}
+                    format="DD/MM/YYYY"
+                    slotProps={{
+                      textField: {
+                        size: "small",
+                        sx: { width: { xs: "100%", sm: 160 }, flex: { xs: 1, sm: "initial" } }
+                      },
+                      popper: {
+                        placement: "bottom-end",
+                        modifiers: [
+                          {
+                            name: "preventOverflow",
+                            options: {
+                              boundary: "viewport"
+                            }
+                          }
+                        ]
+                      }
+                    }}
+                  />
+                </LocalizationProvider>
               </Box>
             )}
           </Box>
@@ -683,7 +770,7 @@ export const Operators: React.FC = () => {
                       <TableCell sx={{ fontWeight: 800, width: 170, minWidth: 150, bgcolor: "background.paper", position: "sticky", left: 0, zIndex: 3, borderRight: "2px solid rgba(255,255,255,0.1)" }}>Operator Name</TableCell>
                       {datesRange.map((dt: Date, idx: number) => {
                         const dayName = dt.toLocaleDateString("en-US", { weekday: "short" });
-                        const dateStr = dt.toLocaleDateString("en-US", { day: "2-digit", month: "2-digit" });
+                        const dateStr = dt.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
                         const future = isFutureDate(dt);
                         return (
                           <TableCell key={idx} align="center" sx={{ fontWeight: 800, minWidth: 80, opacity: future ? 0.35 : 1 }}>
@@ -793,7 +880,7 @@ export const Operators: React.FC = () => {
            TAB 1: OPERATOR SALARY WAGES SUMMARY
            ========================================== */
         <Box>
-          <Box sx={{ mb: 3 }}>
+          <Box display="flex" flexDirection={{ xs: "column", sm: "row" }} justifyContent="space-between" alignItems={{ xs: "stretch", sm: "center" }} sx={{ mb: 3, gap: 2 }}>
             <TextField
               placeholder="Search operators by name or mobile..."
               variant="outlined"
@@ -805,6 +892,59 @@ export const Operators: React.FC = () => {
                 startAdornment: <Search size={18} style={{ marginRight: 8, color: "#94a3b8" }} />
               }}
             />
+
+            {/* Salary Month Selector & Navigation Row */}
+            <Box display="flex" alignItems="center" gap={1.5} sx={{ alignSelf: { xs: "stretch", sm: "auto" }, justifyContent: { xs: "space-between", sm: "flex-end" } }}>
+              <Box display="flex" alignItems="center" gap={0.5}>
+                <IconButton onClick={() => handleShiftSalaryMonth(-1)} size="small" color="primary">
+                  <ChevronLeft size={20} />
+                </IconButton>
+                <Typography variant="body2" sx={{ fontWeight: 800, fontSize: "14px" }}>
+                  Salary Month
+                </Typography>
+                <IconButton 
+                  onClick={() => handleShiftSalaryMonth(1)} 
+                  size="small" 
+                  color="primary"
+                  disabled={isCurrentSalaryMonth}
+                >
+                  <ChevronRight size={20} />
+                </IconButton>
+              </Box>
+
+              <LocalizationProvider dateAdapter={AdapterDayjs}>
+                <DatePicker
+                  label="Select Month"
+                  views={["year", "month"]}
+                  value={dayjs(salaryMonth)}
+                  onChange={(newValue) => {
+                    if (newValue) {
+                      setSalaryMonth(newValue.format("YYYY-MM"));
+                    }
+                  }}
+                  minDate={dayjs().subtract(2, "year").startOf("year")}
+                  maxDate={dayjs(currentMonthStr)}
+                  format="MMM YYYY"
+                  slotProps={{
+                    textField: {
+                      size: "small",
+                      sx: { width: { xs: "100%", sm: 160 } }
+                    },
+                    popper: {
+                      placement: "bottom-end",
+                      modifiers: [
+                        {
+                          name: "preventOverflow",
+                          options: {
+                            boundary: "viewport"
+                          }
+                        }
+                      ]
+                    }
+                  }}
+                />
+              </LocalizationProvider>
+            </Box>
           </Box>
 
           {loading && operators.length === 0 ? (
@@ -826,7 +966,7 @@ export const Operators: React.FC = () => {
                     </TableRow>
                   </TableHead>
                   <TableBody>
-                    {operators.length === 0 ? (
+                    {salaryMonthOperators.length === 0 ? (
                       <TableRow>
                         <TableCell colSpan={6} align="center" sx={{ py: 6 }}>
                           <Typography color="text.secondary">
@@ -835,7 +975,7 @@ export const Operators: React.FC = () => {
                         </TableCell>
                       </TableRow>
                     ) : (
-                      operators.map((op) => (
+                      salaryMonthOperators.map((op) => (
                         <TableRow key={op.id} hover>
                           <TableCell sx={{ fontWeight: 700 }}>{op.operatorName}</TableCell>
                           <TableCell>{op.mobile}</TableCell>
@@ -890,7 +1030,7 @@ export const Operators: React.FC = () => {
                   <TextField label="Operator Name" fullWidth disabled value={cellData.operatorName} />
                 </Grid>
                 <Grid item xs={12}>
-                  <TextField label="Selected Date" fullWidth disabled value={cellData.date.toLocaleDateString()} />
+                  <TextField label="Selected Date" fullWidth disabled value={cellData.date.toLocaleDateString("en-IN")} />
                 </Grid>
                 <Grid item xs={12}>
                   <Typography variant="body2" sx={{ fontWeight: 700, mb: 1, color: "text.secondary" }}>
@@ -1051,7 +1191,36 @@ export const Operators: React.FC = () => {
                 <TextField label="Payment Amount (₹)" type="number" name="amount" fullWidth required value={paymentForm.amount} onChange={handlePaymentChange} inputProps={{ step: "any", min: "0.01" }} placeholder="Enter salary paid amount..." autoFocus />
               </Grid>
               <Grid item xs={12}>
-                <TextField label="Payment Date" type="date" name="paymentDate" fullWidth required InputLabelProps={{ shrink: true }} inputProps={{ max: todayStr }} value={paymentForm.paymentDate} onChange={handlePaymentChange} />
+                <LocalizationProvider dateAdapter={AdapterDayjs}>
+                  <DatePicker
+                    label="Payment Date"
+                    value={dayjs(paymentForm.paymentDate)}
+                    onChange={(newValue) => {
+                      if (newValue) {
+                        setPaymentForm(prev => ({ ...prev, paymentDate: newValue.format("YYYY-MM-DD") }));
+                      }
+                    }}
+                    maxDate={dayjs(todayStr)}
+                    format="DD/MM/YYYY"
+                    slotProps={{
+                      textField: {
+                        fullWidth: true,
+                        required: true
+                      },
+                      popper: {
+                        placement: "bottom-end",
+                        modifiers: [
+                          {
+                            name: "preventOverflow",
+                            options: {
+                              boundary: "viewport"
+                            }
+                          }
+                        ]
+                      }
+                    }}
+                  />
+                </LocalizationProvider>
               </Grid>
               <Grid item xs={12}>
                 <TextField label="Remarks / Payment Notes" name="remarks" fullWidth multiline rows={2} value={paymentForm.remarks} onChange={handlePaymentChange} />

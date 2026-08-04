@@ -89,7 +89,7 @@ export const PendingBills: React.FC = () => {
       // Generate CSV string
       const headers = ["Date", "Customer Name", "Contact Number", "Place", "Machine Type", "Total Amount", "Advance", "Balance Amount", "Remarks"];
       const rows = exportData.map(b => [
-        new Date(b.date).toLocaleDateString(),
+        new Date(b.date).toLocaleDateString("en-IN"),
         b.customerName,
         b.contactNumber,
         b.place,
@@ -169,7 +169,7 @@ export const PendingBills: React.FC = () => {
           <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; background-color: #f8fafc; padding: 16px; border: 1px solid #e2e8f0; border-radius: 6px; margin-bottom: 24px;">
             <div>
               <span style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 600; display: block;">Statement Date</span>
-              <strong style="font-size: 14px; color: #0f172a;">${new Date().toLocaleDateString()}</strong>
+              <strong style="font-size: 14px; color: #0f172a;">${new Date().toLocaleDateString("en-IN")}</strong>
             </div>
             <div>
               <span style="font-size: 11px; text-transform: uppercase; color: #64748b; font-weight: 600; display: block;">Search Filters</span>
@@ -198,7 +198,7 @@ export const PendingBills: React.FC = () => {
             <tbody>
               ${exportData.map(b => `
                 <tr style="border-bottom: 1px solid #e2e8f0; font-size: 12px;">
-                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">${new Date(b.date).toLocaleDateString()}</td>
+                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">${new Date(b.date).toLocaleDateString("en-IN")}</td>
                   <td style="padding: 8px 10px; border: 1px solid #e2e8f0; font-weight: 700; color: #0f172a;">${b.customerName}</td>
                   <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">${b.contactNumber}</td>
                   <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">${b.place}</td>
@@ -322,7 +322,7 @@ export const PendingBills: React.FC = () => {
                 ) : (
                   pendingBills.map((bill) => (
                     <TableRow key={bill.id} hover>
-                      <TableCell>{new Date(bill.date).toLocaleDateString()}</TableCell>
+                      <TableCell>{new Date(bill.date).toLocaleDateString("en-IN")}</TableCell>
                       <TableCell>{bill.place}</TableCell>
                       <TableCell sx={{ fontWeight: 700 }}>{bill.customerName}</TableCell>
                       <TableCell>{bill.contactNumber}</TableCell>
