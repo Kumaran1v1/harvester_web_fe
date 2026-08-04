@@ -57,9 +57,7 @@ export const Operators: React.FC = () => {
 
   // Week Starting state for 7-day grid sheet
   const [weekStart, setWeekStart] = useState<string>(() => {
-    const d = new Date();
-    d.setDate(d.getDate() - 6); // default to show 7 days ending today
-    return d.toISOString().split("T")[0];
+    return dayjs().subtract(6, "day").format("YYYY-MM-DD");
   });
 
   // Selected Month state for Entire Month view (YYYY-MM format)
@@ -115,7 +113,7 @@ export const Operators: React.FC = () => {
   const salaryMonthOperators = useMemo(() => {
     return operators.map((op) => {
       const monthAttendances = (op.attendances || []).filter(att => {
-        const attDateStr = new Date(att.date).toISOString().split("T")[0];
+        const attDateStr = dayjs(att.date).format("YYYY-MM-DD");
         return attDateStr.substring(0, 7) === salaryMonth;
       });
 
@@ -159,7 +157,7 @@ export const Operators: React.FC = () => {
     dailyWage: string;
   } | null>(null);
 
-  const todayStr = new Date().toISOString().split("T")[0];
+  const todayStr = dayjs().format("YYYY-MM-DD");
 
   // Forms
   const [operatorForm, setOperatorForm] = useState({
@@ -194,9 +192,7 @@ export const Operators: React.FC = () => {
 
       if (viewMode === "WEEK") {
         startDateStr = weekStart;
-        const d = new Date(weekStart);
-        d.setDate(d.getDate() + 6);
-        endDateStr = d.toISOString().split("T")[0];
+        endDateStr = dayjs(weekStart).add(6, "day").format("YYYY-MM-DD");
       } else {
         // ENTIRE MONTH VIEW
         const [year, month] = selectedMonth.split("-").map(Number);
@@ -232,7 +228,8 @@ export const Operators: React.FC = () => {
   const datesRange = useMemo(() => {
     const dates: Date[] = [];
     if (viewMode === "WEEK") {
-      const startDt = new Date(weekStart);
+      const [y, m, d] = weekStart.split("-").map(Number);
+      const startDt = new Date(y, m - 1, d);
       for (let i = 0; i < 7; i++) {
         const current = new Date(startDt);
         current.setDate(startDt.getDate() + i);
@@ -250,9 +247,7 @@ export const Operators: React.FC = () => {
 
   // Shift week start back or forward by 7 days
   const handleShiftWeek = (days: number) => {
-    const d = new Date(weekStart);
-    d.setDate(d.getDate() + days);
-    setWeekStart(d.toISOString().split("T")[0]);
+    setWeekStart(dayjs(weekStart).add(days, "day").format("YYYY-MM-DD"));
   };
 
   // Shift month back or forward by 1 month
@@ -331,7 +326,7 @@ export const Operators: React.FC = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           operatorId: cellData.operatorId,
-          date: cellData.date.toISOString().split("T")[0],
+          date: dayjs(cellData.date).format("YYYY-MM-DD"),
           status: cellData.status,
           dailyWage: cellData.status !== "UNMARKED" && cellData.dailyWage ? cellData.dailyWage : ""
         })
