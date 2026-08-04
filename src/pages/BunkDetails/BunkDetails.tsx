@@ -630,6 +630,29 @@ export const BunkDetails: React.FC = () => {
             {/* Stats Row Banner */}
             <Grid container spacing={1.5}>
               <Grid item xs={12} sm={3}>
+                <Box sx={{ p: 1.8, borderRadius: 2.5, bgcolor: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.15)", minHeight: "96px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                  <Box>
+                    <Typography variant="caption" color="text.secondary" display="block" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, fontSize: "11px" }}>
+                      Overall Pending Balance
+                    </Typography>
+                    <Typography variant="h5" sx={{ fontWeight: 900, mt: 0.5, color: "#ef4444", fontSize: { xs: "1.2rem", sm: "1.35rem" } }}>
+                      ₹{overallPendingBalance.toLocaleString()}
+                    </Typography>
+                  </Box>
+                  {overallPendingBalance > 0 && (
+                    <Button
+                      variant="contained"
+                      color="error"
+                      size="small"
+                      onClick={() => setIsBulkPaymentOpen(true)}
+                      sx={{ mt: 1, py: 0.2, fontSize: "10px", fontWeight: 800, textTransform: "none", width: "100%" }}
+                    >
+                      Clear Debt (FIFO)
+                    </Button>
+                  )}
+                </Box>
+              </Grid>
+              <Grid item xs={12} sm={3}>
                 <Box sx={{ p: 1.8, borderRadius: 2.5, bgcolor: "rgba(13, 148, 136, 0.08)", border: "1px solid rgba(13, 148, 136, 0.15)", minHeight: "96px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, fontSize: "11px" }}>
                     Total Diesel Purchased
@@ -657,29 +680,6 @@ export const BunkDetails: React.FC = () => {
                   <Typography variant="h5" sx={{ fontWeight: 900, color: pendingBalance > 0 ? "#f59e0b" : "#10b981", mt: 0.5, fontSize: { xs: "1.2rem", sm: "1.35rem" } }}>
                     ₹{pendingBalance.toLocaleString()}
                   </Typography>
-                </Box>
-              </Grid>
-              <Grid item xs={12} sm={3}>
-                <Box sx={{ p: 1.8, borderRadius: 2.5, bgcolor: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.15)", minHeight: "96px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
-                  <Box>
-                    <Typography variant="caption" color="text.secondary" display="block" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, fontSize: "11px" }}>
-                      Overall Pending Balance
-                    </Typography>
-                    <Typography variant="h5" sx={{ fontWeight: 900, mt: 0.5, color: "#ef4444", fontSize: { xs: "1.2rem", sm: "1.35rem" } }}>
-                      ₹{overallPendingBalance.toLocaleString()}
-                    </Typography>
-                  </Box>
-                  {overallPendingBalance > 0 && (
-                    <Button
-                      variant="contained"
-                      color="error"
-                      size="small"
-                      onClick={() => setIsBulkPaymentOpen(true)}
-                      sx={{ mt: 1, py: 0.2, fontSize: "10px", fontWeight: 800, textTransform: "none", width: "100%" }}
-                    >
-                      Clear Debt (FIFO)
-                    </Button>
-                  )}
                 </Box>
               </Grid>
             </Grid>

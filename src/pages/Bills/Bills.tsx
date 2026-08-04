@@ -46,7 +46,7 @@ export const Bills: React.FC = () => {
   // Search & Pagination states
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
   const [totalCount, setTotalCount] = useState(0);
 
   // Modals status
@@ -591,7 +591,7 @@ export const Bills: React.FC = () => {
                           {bill.customerName}
                         </TableCell>
                         <TableCell>{bill.contactNumber}</TableCell>
-                        <TableCell>{bill.timeHours}</TableCell>
+                        <TableCell>{Number(bill.timeHours).toFixed(2)}</TableCell>
                         <TableCell>₹{Number(bill.totalAmount).toLocaleString()}</TableCell>
                         <TableCell>₹{Number(bill.advance).toLocaleString()}</TableCell>
                         <Tooltip title="Click to record payment" arrow>

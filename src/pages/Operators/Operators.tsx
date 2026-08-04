@@ -733,7 +733,7 @@ export const Operators: React.FC = () => {
                         setWeekStart(newValue.format("YYYY-MM-DD"));
                       }
                     }}
-                    format="DD/MM/YYYY"
+                    format="DD/MMM/YYYY"
                     slotProps={{
                       textField: {
                         size: "small",
@@ -1201,7 +1201,7 @@ export const Operators: React.FC = () => {
                       }
                     }}
                     maxDate={dayjs(todayStr)}
-                    format="DD/MM/YYYY"
+                    format="DD/MMM/YYYY"
                     slotProps={{
                       textField: {
                         fullWidth: true,

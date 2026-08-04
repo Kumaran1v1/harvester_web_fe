@@ -30,7 +30,7 @@ export const PendingBills: React.FC = () => {
   // Search & Pagination states
   const [searchQuery, setSearchQuery] = useState("");
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [rowsPerPage, setRowsPerPage] = useState(50);
   const [totalCount, setTotalCount] = useState(0);
 
   const fetchPendingBills = async () => {
