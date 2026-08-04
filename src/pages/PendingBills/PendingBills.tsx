@@ -87,13 +87,14 @@ export const PendingBills: React.FC = () => {
       }
 
       // Generate CSV string
-      const headers = ["Date", "Customer Name", "Contact Number", "Place", "Machine Type", "Total Amount", "Advance", "Balance Amount", "Remarks"];
+      const headers = ["Date", "Customer Name", "Contact Number", "Place", "Machine Type", "Time (Hours)", "Total Amount", "Advance", "Balance Amount", "Remarks"];
       const rows = exportData.map(b => [
         new Date(b.date).toLocaleDateString("en-IN"),
         b.customerName,
         b.contactNumber,
         b.place,
         b.machineType === "CLASS" ? "Class Machine" : "Kartar Machine",
+        Number(b.timeHours || 0).toFixed(2),
         b.totalAmount,
         b.advance,
         b.balanceAmount,
@@ -190,34 +191,36 @@ export const PendingBills: React.FC = () => {
                 <th style="padding: 10px; border: 1px solid #1e293b; text-align: left; font-size: 12px; font-weight: 700;">Contact</th>
                 <th style="padding: 10px; border: 1px solid #1e293b; text-align: left; font-size: 12px; font-weight: 700;">Place</th>
                 <th style="padding: 10px; border: 1px solid #1e293b; text-align: left; font-size: 12px; font-weight: 700;">Machine</th>
+                <th style="padding: 10px; border: 1px solid #1e293b; text-align: center; font-size: 12px; font-weight: 700;">Time (Hrs)</th>
                 <th style="padding: 10px; border: 1px solid #1e293b; text-align: right; font-size: 12px; font-weight: 700;">Total Amount</th>
                 <th style="padding: 10px; border: 1px solid #1e293b; text-align: right; font-size: 12px; font-weight: 700;">Advance Paid</th>
                 <th style="padding: 10px; border: 1px solid #1e293b; text-align: right; font-size: 12px; font-weight: 700;">Remaining Balance</th>
               </tr>
             </thead>
             <tbody>
-              ${exportData.map(b => `
+              \${exportData.map(b => \`
                 <tr style="border-bottom: 1px solid #e2e8f0; font-size: 12px;">
-                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">${new Date(b.date).toLocaleDateString("en-IN")}</td>
-                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0; font-weight: 700; color: #0f172a;">${b.customerName}</td>
-                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">${b.contactNumber}</td>
-                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">${b.place}</td>
+                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">\${new Date(b.date).toLocaleDateString("en-IN")}</td>
+                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0; font-weight: 700; color: #0f172a;">\${b.customerName}</td>
+                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">\${b.contactNumber}</td>
+                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">\${b.place}</td>
                   <td style="padding: 8px 10px; border: 1px solid #e2e8f0;">
-                    <span style="padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; background-color: ${b.machineType === "CLASS" ? "#e0f2fe" : "#e0e7ff"}; color: ${b.machineType === "CLASS" ? "#0369a1" : "#4338ca"};">
-                      ${b.machineType === "CLASS" ? "Class" : "Kartar"}
+                    <span style="padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; background-color: \${b.machineType === "CLASS" ? "#e0f2fe" : "#e0e7ff"}; color: \${b.machineType === "CLASS" ? "#0369a1" : "#4338ca"};">
+                      \${b.machineType === "CLASS" ? "Class" : "Kartar"}
                     </span>
                   </td>
-                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: right;">₹${Number(b.totalAmount).toLocaleString()}</td>
-                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: right;">₹${Number(b.advance).toLocaleString()}</td>
-                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: right; color: #b91c1c; font-weight: 700;">₹${Number(b.balanceAmount).toLocaleString()}</td>
+                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: center;">\${Number(b.timeHours || 0).toFixed(2)}</td>
+                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: right;">₹\${Number(b.totalAmount).toLocaleString()}</td>
+                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: right;">₹\${Number(b.advance).toLocaleString()}</td>
+                  <td style="padding: 8px 10px; border: 1px solid #e2e8f0; text-align: right; color: #b91c1c; font-weight: 700;">₹\${Number(b.balanceAmount).toLocaleString()}</td>
                 </tr>
-              `).join("")}
+              \`).join("")}
               <!-- Totals row -->
               <tr style="background-color: #f1f5f9; font-weight: 800; font-size: 12px; color: #0f172a;">
-                <td colspan="5" style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">GRAND TOTALS:</td>
-                <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">₹${totalAmountSum.toLocaleString()}</td>
-                <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">₹${totalAdvanceSum.toLocaleString()}</td>
-                <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; color: #b91c1c;">₹${totalBalanceSum.toLocaleString()}</td>
+                <td colspan="6" style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">GRAND TOTALS:</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">₹\${totalAmountSum.toLocaleString()}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right;">₹\${totalAdvanceSum.toLocaleString()}</td>
+                <td style="padding: 10px; border: 1px solid #cbd5e1; text-align: right; color: #b91c1c;">₹\${totalBalanceSum.toLocaleString()}</td>
               </tr>
             </tbody>
           </table>
@@ -304,6 +307,7 @@ export const PendingBills: React.FC = () => {
                   <TableCell sx={{ fontWeight: 700 }}>Customer Name</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Contact</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Machine Type</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }} align="center">Time (Hours)</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Total Amount</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Advance</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Balance</TableCell>
@@ -339,6 +343,7 @@ export const PendingBills: React.FC = () => {
                           }}
                         />
                       </TableCell>
+                      <TableCell align="center">{Number(bill.timeHours || 0).toFixed(2)}</TableCell>
                       <TableCell>₹{Number(bill.totalAmount).toLocaleString()}</TableCell>
                       <TableCell>₹{Number(bill.advance).toLocaleString()}</TableCell>
                       <TableCell sx={{ color: "error.main", fontWeight: 700 }}>
