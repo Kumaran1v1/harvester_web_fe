@@ -6,9 +6,10 @@ import dayjs from "dayjs";
 import {
   Box, Card, Typography, Button, TextField, Paper, CircularProgress,
   IconButton, Tooltip, Grid, Chip, Divider, Dialog, DialogTitle,
-  DialogContent, DialogActions
+  DialogContent, DialogActions, Tabs, Tab, Table, TableBody, TableCell,
+  TableContainer, TableHead, TableRow, Collapse
 } from "@mui/material";
-import { Fuel, Plus, Trash2, CheckCircle2, Clock, CalendarDays, ChevronLeft, ChevronRight, Wallet, DollarSign, ArrowRight, FileDown } from "lucide-react";
+import { Fuel, Plus, Trash2, CheckCircle2, Clock, CalendarDays, ChevronLeft, ChevronRight, Wallet, DollarSign, ArrowRight, FileDown, History, TrendingDown, TrendingUp, ChevronDown, ChevronUp } from "lucide-react";
 import html2pdf from "html2pdf.js";
 import { useDispatch } from "react-redux";
 import { showToast } from "../../redux/toast/toastSlice";
@@ -127,6 +128,29 @@ export const BunkDetails: React.FC = () => {
   const overallPendingBalance = useMemo(() => {
     return records.reduce((sum, r) => sum + Number(r.balance || 0), 0);
   }, [records]);
+
+  // Active view: "daily" | "history"
+  const [activeView, setActiveView] = useState<"daily" | "history">("daily");
+  const [expandedRow, setExpandedRow] = useState<number | null>(null);
+
+  // History search filter
+  const [historySearch, setHistorySearch] = useState("");
+
+  // Sorted all records desc for history tab
+  const sortedHistoryRecords = useMemo(() => {
+    const sorted = [...records].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    if (!historySearch.trim()) return sorted;
+    const q = historySearch.toLowerCase();
+    return sorted.filter(r => new Date(r.date).toLocaleDateString("en-IN").includes(q) || r.balance.toString().includes(q));
+  }, [records, historySearch]);
+
+  // Overall stats across all history
+  const historyTotals = useMemo(() => ({
+    totalPurchased: records.reduce((s, r) => s + Number(r.fuelAmount || 0), 0),
+    totalPaid: records.reduce((s, r) => s + Number(r.paidAmount || 0), 0),
+    pendingCount: records.filter(r => Number(r.balance || 0) > 0).length,
+    paidCount: records.filter(r => Number(r.balance || 0) === 0 && Number(r.fuelAmount || 0) > 0).length,
+  }), [records]);
 
   // Save / Sync Record Helper
   const syncRecord = async (updatedPurchases: PurchaseItem[], updatedPayments: PaymentItem[]) => {
@@ -533,13 +557,29 @@ export const BunkDetails: React.FC = () => {
               Daily Bunk Register Sheet
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 600 }}>
-              Single date daily refuel & payment settlement register.
+              Single date daily refuel & payment settlement register or overall day-by-day history.
             </Typography>
           </Box>
         </Box>
 
-        {/* Date Selector & Report Button */}
+        {/* View Mode Navigation Tabs & Action Buttons */}
         <Box display="flex" alignItems="center" gap={1.5} sx={{ alignSelf: { xs: "stretch", sm: "auto" }, width: { xs: "100%", sm: "auto" }, justifyContent: { xs: "space-between", sm: "flex-end" }, flexWrap: "wrap" }}>
+          <Tabs
+            value={activeView}
+            onChange={(e, val) => setActiveView(val)}
+            sx={{
+              minHeight: 40,
+              bgcolor: "background.paper",
+              borderRadius: 3,
+              p: 0.5,
+              border: "1px solid rgba(255,255,255,0.08)",
+              "& .MuiTab-root": { minHeight: 36, py: 0.5, px: 2, borderRadius: 2, fontWeight: 800, fontSize: "0.82rem", textTransform: "none" }
+            }}
+          >
+            <Tab value="daily" label="Daily Register" icon={<CalendarDays size={16} />} iconPosition="start" />
+            <Tab value="history" label={`Day-by-Day History (${records.length})`} icon={<History size={16} />} iconPosition="start" />
+          </Tabs>
+
           <Button
             variant="outlined"
             color="primary"
@@ -549,8 +589,13 @@ export const BunkDetails: React.FC = () => {
           >
             PDF Report
           </Button>
+        </Box>
+      </Box>
 
-          <Paper sx={{ p: 0.8, px: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, borderRadius: 3, bgcolor: "background.paper", border: "1px solid rgba(255,255,255,0.08)", flexGrow: { xs: 1, sm: 0 } }}>
+      {/* Date Navigator Header - Shown only in Daily View */}
+      {activeView === "daily" && (
+        <Box display="flex" justifyContent="flex-end">
+          <Paper sx={{ p: 0.8, px: 1.5, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 1, borderRadius: 3, bgcolor: "background.paper", border: "1px solid rgba(255,255,255,0.08)", width: { xs: "100%", sm: "auto" } }}>
             <IconButton size="small" onClick={handlePrevDay}>
               <ChevronLeft size={20} />
             </IconButton>
@@ -598,13 +643,13 @@ export const BunkDetails: React.FC = () => {
             )}
           </Paper>
         </Box>
-      </Box>
+      )}
 
       {loading ? (
         <Box display="flex" justifyContent="center" alignItems="center" flexGrow={1} minHeight="50vh">
           <CircularProgress size={44} />
         </Box>
-      ) : (
+      ) : activeView === "daily" ? (
         /* MAIN PAGE BANNER CARD FOR SELECTED DATE */
         <Card sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3.5, border: "1px solid rgba(255,255,255,0.08)", bgcolor: "background.paper", boxShadow: "0 12px 40px rgba(0,0,0,0.3)", flexGrow: 1, display: "flex", flexDirection: "column", gap: 2.5 }}>
           {/* Banner Top Header & Live Stats Bar */}
@@ -869,6 +914,228 @@ export const BunkDetails: React.FC = () => {
             </Grid>
           </Grid>
         </Card>
+      ) : (
+        /* DAY-BY-DAY OVERALL HISTORY VIEW */
+        <Box display="flex" flexDirection="column" gap={3}>
+          {/* Summary Stat Cards */}
+          <Grid container spacing={2}>
+            <Grid item xs={6} sm={3}>
+              <Paper sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(13, 148, 136, 0.08)", border: "1px solid rgba(13, 148, 136, 0.2)" }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: "11px" }}>
+                  Total Refuel Purchased
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, color: "#2dd4bf", mt: 0.5 }}>
+                  ₹{historyTotals.totalPurchased.toLocaleString()}
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Paper sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: "11px" }}>
+                  Total Paid to Bunk
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, color: "#10b981", mt: 0.5 }}>
+                  ₹{historyTotals.totalPaid.toLocaleString()}
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Paper sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: "11px" }}>
+                  Overall Pending Debt
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, color: "#ef4444", mt: 0.5 }}>
+                  ₹{overallPendingBalance.toLocaleString()}
+                </Typography>
+              </Paper>
+            </Grid>
+            <Grid item xs={6} sm={3}>
+              <Paper sx={{ p: 2, borderRadius: 3, bgcolor: "background.paper", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: "11px" }}>
+                  Logged Bunk Days
+                </Typography>
+                <Typography variant="h5" sx={{ fontWeight: 900, color: "text.primary", mt: 0.5 }}>
+                  {records.length} Days
+                </Typography>
+              </Paper>
+            </Grid>
+          </Grid>
+
+          {/* Day-by-Day Interactive Table Card */}
+          <Card sx={{ borderRadius: 3.5, border: "1px solid rgba(255,255,255,0.08)", bgcolor: "background.paper", overflow: "hidden" }}>
+            <Box p={2.5} display="flex" justifyContent="space-between" alignItems="center" flexWrap="wrap" gap={2} sx={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+              <Box display="flex" alignItems="center" gap={1}>
+                <History style={{ color: "#2dd4bf" }} size={22} />
+                <Typography variant="h6" sx={{ fontWeight: 800 }}>
+                  Day-by-Day Bunk Register History
+                </Typography>
+              </Box>
+
+              <TextField
+                placeholder="Search date, amount..."
+                size="small"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                sx={{ maxWidth: 300, width: "100%" }}
+              />
+            </Box>
+
+            <TableContainer>
+              <Table>
+                <TableHead>
+                  <TableRow sx={{ bgcolor: "rgba(255,255,255,0.02)" }}>
+                    <TableCell sx={{ fontWeight: 700, width: 48 }}></TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>#</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Refuels (Purchased)</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Payments Paid</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Balance Due</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
+                    <TableCell sx={{ fontWeight: 700 }} align="right">Action</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {sortedHistoryRecords.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                        <Typography color="text.secondary">
+                          {historySearch ? "No matching history records found." : "No bunk records found."}
+                        </Typography>
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    sortedHistoryRecords.map((r, idx) => {
+                      const dStr = new Date(r.date).toISOString().split("T")[0];
+                      const dateObj = new Date(r.date);
+                      const formattedDate = dateObj.toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+                      const isExpanded = expandedRow === r.id;
+                      const bal = Number(r.balance || 0);
+
+                      let purchases: PurchaseItem[] = [];
+                      if (r.purchasesJson) {
+                        try { purchases = JSON.parse(r.purchasesJson); } catch (e) {}
+                      }
+                      let payments: PaymentItem[] = [];
+                      if (r.paymentsJson) {
+                        try { payments = JSON.parse(r.paymentsJson); } catch (e) {}
+                      }
+
+                      return (
+                        <React.Fragment key={r.id}>
+                          <TableRow hover sx={{ "& > *": { borderBottom: "unset" } }}>
+                            <TableCell>
+                              <IconButton
+                                aria-label="expand row"
+                                size="small"
+                                onClick={() => setExpandedRow(isExpanded ? null : r.id)}
+                              >
+                                {isExpanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+                              </IconButton>
+                            </TableCell>
+                            <TableCell sx={{ color: "text.secondary", fontSize: "12px" }}>{idx + 1}</TableCell>
+                            <TableCell sx={{ fontWeight: 700 }}>{formattedDate}</TableCell>
+                            <TableCell>
+                              <Typography variant="body2" sx={{ fontWeight: 800, color: "text.primary" }}>
+                                ₹{Number(r.fuelAmount || 0).toLocaleString()}
+                              </Typography>
+                              {purchases.length > 0 && (
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  {purchases.length} refuel {purchases.length === 1 ? "entry" : "entries"}
+                                </Typography>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" sx={{ fontWeight: 800, color: "#10b981" }}>
+                                ₹{Number(r.paidAmount || 0).toLocaleString()}
+                              </Typography>
+                              {payments.length > 0 && (
+                                <Typography variant="caption" color="text.secondary" display="block">
+                                  {payments.length} payment {payments.length === 1 ? "entry" : "entries"}
+                                </Typography>
+                              )}
+                            </TableCell>
+                            <TableCell>
+                              <Typography variant="body2" sx={{ fontWeight: 900, color: bal > 0 ? "error.main" : "success.main" }}>
+                                {bal > 0 ? `₹${bal.toLocaleString()}` : "Fully Paid"}
+                              </Typography>
+                            </TableCell>
+                            <TableCell>
+                              <Chip
+                                label={bal === 0 ? "PAID" : "PENDING"}
+                                color={bal === 0 ? "success" : "warning"}
+                                size="small"
+                                sx={{ fontWeight: 900, fontSize: "10px" }}
+                              />
+                            </TableCell>
+                            <TableCell align="right">
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="primary"
+                                onClick={() => {
+                                  setSelectedDate(dStr);
+                                  setActiveView("daily");
+                                }}
+                                sx={{ fontWeight: 700, fontSize: "11px", textTransform: "none", borderRadius: 2 }}
+                              >
+                                View / Edit Day
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+
+                          {/* Collapsible Expanded Details */}
+                          <TableRow>
+                            <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={8}>
+                              <Collapse in={isExpanded} timeout="auto" unmountOnExit>
+                                <Box sx={{ margin: 2, p: 2, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
+                                  <Typography variant="subtitle2" gutterBottom component="div" sx={{ fontWeight: 800, color: "#2dd4bf" }}>
+                                    Detailed Breakdown for {formattedDate}
+                                  </Typography>
+                                  <Grid container spacing={2}>
+                                    <Grid item xs={12} sm={6}>
+                                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: "block", mb: 1 }}>
+                                        Refuels Logged ({purchases.length})
+                                      </Typography>
+                                      {purchases.length === 0 ? (
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic" }}>No entries logged</Typography>
+                                      ) : (
+                                        purchases.map(p => (
+                                          <Box key={p.id} display="flex" justifyContent="space-between" sx={{ py: 0.5, borderBottom: "1px dashed rgba(255,255,255,0.06)" }}>
+                                            <Typography variant="caption">{p.time}</Typography>
+                                            <Typography variant="caption" sx={{ fontWeight: 700 }}>₹{p.amount.toLocaleString()}</Typography>
+                                          </Box>
+                                        ))
+                                      )}
+                                    </Grid>
+                                    <Grid item xs={12} sm={6}>
+                                      <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, display: "block", mb: 1 }}>
+                                        Payments Logged ({payments.length})
+                                      </Typography>
+                                      {payments.length === 0 ? (
+                                        <Typography variant="caption" color="text.secondary" sx={{ fontStyle: "italic" }}>No payments logged</Typography>
+                                      ) : (
+                                        payments.map(p => (
+                                          <Box key={p.id} display="flex" justifyContent="space-between" sx={{ py: 0.5, borderBottom: "1px dashed rgba(255,255,255,0.06)" }}>
+                                            <Typography variant="caption">{p.time} {p.remarks ? `(${p.remarks})` : ""}</Typography>
+                                            <Typography variant="caption" sx={{ fontWeight: 700, color: "#10b981" }}>₹{p.amount.toLocaleString()}</Typography>
+                                          </Box>
+                                        ))
+                                      )}
+                                    </Grid>
+                                  </Grid>
+                                </Box>
+                              </Collapse>
+                            </TableCell>
+                          </TableRow>
+                        </React.Fragment>
+                      );
+                    })
+                  )}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          </Card>
+        </Box>
       )}
 
       {/* Date Range Report Selector Modal */}
