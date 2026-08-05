@@ -563,21 +563,23 @@ export const BunkDetails: React.FC = () => {
         </Box>
 
         {/* View Mode Navigation Tabs & Action Buttons */}
-        <Box display="flex" alignItems="center" gap={1.5} sx={{ alignSelf: { xs: "stretch", sm: "auto" }, width: { xs: "100%", sm: "auto" }, justifyContent: { xs: "space-between", sm: "flex-end" }, flexWrap: "wrap" }}>
+        <Box display="flex" alignItems="center" gap={1.5} sx={{ alignSelf: { xs: "stretch", sm: "auto" }, width: { xs: "100%", sm: "auto" }, justifyContent: { xs: "space-between", sm: "flex-end" }, flexWrap: "wrap", flexDirection: { xs: "column", sm: "row" } }}>
           <Tabs
             value={activeView}
             onChange={(e, val) => setActiveView(val)}
+            variant="fullWidth"
             sx={{
               minHeight: 40,
               bgcolor: "background.paper",
               borderRadius: 3,
               p: 0.5,
+              width: { xs: "100%", sm: "auto" },
               border: "1px solid rgba(255,255,255,0.08)",
-              "& .MuiTab-root": { minHeight: 36, py: 0.5, px: 2, borderRadius: 2, fontWeight: 800, fontSize: "0.82rem", textTransform: "none" }
+              "& .MuiTab-root": { minHeight: 36, py: 0.5, px: { xs: 1, sm: 2 }, borderRadius: 2, fontWeight: 800, fontSize: { xs: "0.75rem", sm: "0.82rem" }, textTransform: "none" }
             }}
           >
             <Tab value="daily" label="Daily Register" icon={<CalendarDays size={16} />} iconPosition="start" />
-            <Tab value="history" label={`Day-by-Day History (${records.length})`} icon={<History size={16} />} iconPosition="start" />
+            <Tab value="history" label={`History (${records.length})`} icon={<History size={16} />} iconPosition="start" />
           </Tabs>
 
           <Button
@@ -585,7 +587,7 @@ export const BunkDetails: React.FC = () => {
             color="primary"
             startIcon={<FileDown size={18} />}
             onClick={() => setIsReportModalOpen(true)}
-            sx={{ fontWeight: 805, borderRadius: 3, py: 0.9, px: 2, textTransform: "none", fontSize: "0.85rem" }}
+            sx={{ fontWeight: 805, borderRadius: 3, py: 0.9, px: 2, textTransform: "none", fontSize: "0.85rem", width: { xs: "100%", sm: "auto" } }}
           >
             PDF Report
           </Button>
@@ -918,43 +920,43 @@ export const BunkDetails: React.FC = () => {
         /* DAY-BY-DAY OVERALL HISTORY VIEW */
         <Box display="flex" flexDirection="column" gap={3}>
           {/* Summary Stat Cards */}
-          <Grid container spacing={2}>
+          <Grid container spacing={{ xs: 1.5, sm: 2 }}>
             <Grid item xs={6} sm={3}>
-              <Paper sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(13, 148, 136, 0.08)", border: "1px solid rgba(13, 148, 136, 0.2)" }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: "11px" }}>
-                  Total Refuel Purchased
+              <Paper sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 3, bgcolor: "rgba(13, 148, 136, 0.08)", border: "1px solid rgba(13, 148, 136, 0.2)" }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: { xs: "9px", sm: "11px" } }}>
+                  Total Refuel
                 </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 900, color: "#2dd4bf", mt: 0.5 }}>
+                <Typography variant="h6" sx={{ fontWeight: 900, color: "#2dd4bf", mt: 0.5, fontSize: { xs: "1rem", sm: "1.25rem" } }}>
                   ₹{historyTotals.totalPurchased.toLocaleString()}
                 </Typography>
               </Paper>
             </Grid>
             <Grid item xs={6} sm={3}>
-              <Paper sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: "11px" }}>
-                  Total Paid to Bunk
+              <Paper sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 3, bgcolor: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.2)" }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: { xs: "9px", sm: "11px" } }}>
+                  Total Paid
                 </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 900, color: "#10b981", mt: 0.5 }}>
+                <Typography variant="h6" sx={{ fontWeight: 900, color: "#10b981", mt: 0.5, fontSize: { xs: "1rem", sm: "1.25rem" } }}>
                   ₹{historyTotals.totalPaid.toLocaleString()}
                 </Typography>
               </Paper>
             </Grid>
             <Grid item xs={6} sm={3}>
-              <Paper sx={{ p: 2, borderRadius: 3, bgcolor: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: "11px" }}>
-                  Overall Pending Debt
+              <Paper sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 3, bgcolor: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: { xs: "9px", sm: "11px" } }}>
+                  Pending Debt
                 </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 900, color: "#ef4444", mt: 0.5 }}>
+                <Typography variant="h6" sx={{ fontWeight: 900, color: "#ef4444", mt: 0.5, fontSize: { xs: "1rem", sm: "1.25rem" } }}>
                   ₹{overallPendingBalance.toLocaleString()}
                 </Typography>
               </Paper>
             </Grid>
             <Grid item xs={6} sm={3}>
-              <Paper sx={{ p: 2, borderRadius: 3, bgcolor: "background.paper", border: "1px solid rgba(255,255,255,0.08)" }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: "11px" }}>
-                  Logged Bunk Days
+              <Paper sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 3, bgcolor: "background.paper", border: "1px solid rgba(255,255,255,0.08)" }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: { xs: "9px", sm: "11px" } }}>
+                  Bunk Days
                 </Typography>
-                <Typography variant="h5" sx={{ fontWeight: 900, color: "text.primary", mt: 0.5 }}>
+                <Typography variant="h6" sx={{ fontWeight: 900, color: "text.primary", mt: 0.5, fontSize: { xs: "1rem", sm: "1.25rem" } }}>
                   {records.length} Days
                 </Typography>
               </Paper>
@@ -980,7 +982,8 @@ export const BunkDetails: React.FC = () => {
               />
             </Box>
 
-            <TableContainer>
+            {/* Desktop Table View (md and up) */}
+            <TableContainer sx={{ display: { xs: "none", md: "block" } }}>
               <Table>
                 <TableHead>
                   <TableRow sx={{ bgcolor: "rgba(255,255,255,0.02)" }}>
@@ -1134,6 +1137,151 @@ export const BunkDetails: React.FC = () => {
                 </TableBody>
               </Table>
             </TableContainer>
+
+            {/* Mobile Card List View (xs to md screens) */}
+            <Box sx={{ display: { xs: "flex", md: "none" }, flexDirection: "column", gap: 1.5, p: 1.5 }}>
+              {sortedHistoryRecords.length === 0 ? (
+                <Typography color="text.secondary" align="center" sx={{ py: 4 }}>
+                  {historySearch ? "No matching records found." : "No bunk records found."}
+                </Typography>
+              ) : (
+                sortedHistoryRecords.map((r, idx) => {
+                  const dStr = new Date(r.date).toISOString().split("T")[0];
+                  const dateObj = new Date(r.date);
+                  const formattedDate = dateObj.toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
+                  const isExpanded = expandedRow === r.id;
+                  const bal = Number(r.balance || 0);
+
+                  let purchases: PurchaseItem[] = [];
+                  if (r.purchasesJson) { try { purchases = JSON.parse(r.purchasesJson); } catch (e) {} }
+                  let payments: PaymentItem[] = [];
+                  if (r.paymentsJson) { try { payments = JSON.parse(r.paymentsJson); } catch (e) {} }
+
+                  return (
+                    <Card
+                      key={r.id}
+                      sx={{
+                        borderRadius: 3,
+                        p: 1.8,
+                        border: "1px solid",
+                        borderColor: bal > 0 ? "rgba(239, 68, 68, 0.25)" : "rgba(16, 185, 129, 0.25)",
+                        bgcolor: "background.paper",
+                        boxShadow: "0 4px 20px rgba(0,0,0,0.2)"
+                      }}
+                    >
+                      {/* Card Header: Date & Status Chip */}
+                      <Box display="flex" justifyContent="space-between" alignItems="center" mb={1}>
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: "text.secondary", bgcolor: "rgba(255,255,255,0.06)", px: 0.8, py: 0.2, borderRadius: 1.5 }}>
+                            #{idx + 1}
+                          </Typography>
+                          <Typography variant="subtitle2" sx={{ fontWeight: 900, fontSize: "0.85rem" }}>
+                            {formattedDate}
+                          </Typography>
+                        </Box>
+                        <Chip
+                          label={bal === 0 ? "PAID" : "PENDING"}
+                          color={bal === 0 ? "success" : "warning"}
+                          size="small"
+                          sx={{ fontWeight: 900, fontSize: "9px" }}
+                        />
+                      </Box>
+
+                      <Divider sx={{ my: 1, borderColor: "rgba(255,255,255,0.06)" }} />
+
+                      {/* Grid Stats inside Mobile Card */}
+                      <Grid container spacing={1} sx={{ my: 0.5 }}>
+                        <Grid item xs={4}>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: "9px", fontWeight: 700 }}>
+                            Refuel
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 800, color: "#2dd4bf", fontSize: "0.82rem" }}>
+                            ₹{Number(r.fuelAmount || 0).toLocaleString()}
+                          </Typography>
+                        </Grid>
+
+                        <Grid item xs={4}>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: "9px", fontWeight: 700 }}>
+                            Paid
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 800, color: "#10b981", fontSize: "0.82rem" }}>
+                            ₹{Number(r.paidAmount || 0).toLocaleString()}
+                          </Typography>
+                        </Grid>
+
+                        <Grid item xs={4}>
+                          <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: "9px", fontWeight: 700 }}>
+                            Balance
+                          </Typography>
+                          <Typography variant="body2" sx={{ fontWeight: 900, color: bal > 0 ? "#ef4444" : "#10b981", fontSize: "0.82rem" }}>
+                            {bal > 0 ? `₹${bal.toLocaleString()}` : "Fully Paid"}
+                          </Typography>
+                        </Grid>
+                      </Grid>
+
+                      {/* Collapsible Breakdown if toggle clicked */}
+                      {isExpanded && (
+                        <Box sx={{ mt: 1.5, pt: 1.5, borderTop: "1px dashed rgba(255,255,255,0.1)", bgcolor: "rgba(255,255,255,0.02)", p: 1.5, borderRadius: 2 }}>
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: "#2dd4bf", display: "block", mb: 0.8 }}>
+                            Refuels Logged ({purchases.length})
+                          </Typography>
+                          {purchases.length === 0 ? (
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ fontStyle: "italic", mb: 1 }}>No refuel entries</Typography>
+                          ) : (
+                            purchases.map(p => (
+                              <Box key={p.id} display="flex" justifyContent="space-between" sx={{ py: 0.3 }}>
+                                <Typography variant="caption">{p.time}</Typography>
+                                <Typography variant="caption" sx={{ fontWeight: 700 }}>₹{p.amount.toLocaleString()}</Typography>
+                              </Box>
+                            ))
+                          )}
+
+                          <Typography variant="caption" sx={{ fontWeight: 800, color: "#10b981", display: "block", mt: 1, mb: 0.5 }}>
+                            Payments Logged ({payments.length})
+                          </Typography>
+                          {payments.length === 0 ? (
+                            <Typography variant="caption" color="text.secondary" display="block" sx={{ fontStyle: "italic" }}>No payment entries</Typography>
+                          ) : (
+                            payments.map(p => (
+                              <Box key={p.id} display="flex" justifyContent="space-between" sx={{ py: 0.3 }}>
+                                <Typography variant="caption">{p.time} {p.remarks ? `(${p.remarks})` : ""}</Typography>
+                                <Typography variant="caption" sx={{ fontWeight: 700, color: "#10b981" }}>₹{p.amount.toLocaleString()}</Typography>
+                              </Box>
+                            ))
+                          )}
+                        </Box>
+                      )}
+
+                      {/* Action Row */}
+                      <Box display="flex" gap={1} mt={1.5}>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          color="inherit"
+                          onClick={() => setExpandedRow(isExpanded ? null : r.id)}
+                          startIcon={isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+                          sx={{ flex: 1, fontSize: "11px", fontWeight: 700, textTransform: "none", borderRadius: 2 }}
+                        >
+                          {isExpanded ? "Hide" : "Details"}
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="contained"
+                          color="primary"
+                          onClick={() => {
+                            setSelectedDate(dStr);
+                            setActiveView("daily");
+                          }}
+                          sx={{ flex: 1, fontSize: "11px", fontWeight: 800, textTransform: "none", borderRadius: 2 }}
+                        >
+                          View / Edit Day
+                        </Button>
+                      </Box>
+                    </Card>
+                  );
+                })
+              )}
+            </Box>
           </Card>
         </Box>
       )}
