@@ -9,7 +9,8 @@ import {
   TableContainer, TableHead, TableRow, Paper, CircularProgress,
   IconButton, Tooltip, Grid, Checkbox, Chip, TablePagination, Tabs, Tab
 } from "@mui/material";
-import { FileText, Plus, Edit, Search, History, Trash2 } from "lucide-react";
+import { FileText, Plus, Edit, Search, History, Trash2, FileSpreadsheet } from "lucide-react";
+import { exportBillsPDF, exportBillsExcel } from "../../utils/billsExport";
 import { useDispatch } from "react-redux";
 import { showToast } from "../../redux/toast/toastSlice";
 
@@ -124,10 +125,51 @@ export const Bills: React.FC = () => {
     }
   };
 
+  // Company name for PDF header (from profile)
+  const [companyName, setCompanyName] = useState("HARVESTER MANAGEMENT SYSTEM");
+  useEffect(() => {
+    fetch("/api/auth/profile").then(r => r.json()).then(d => {
+      if (d.companyName) setCompanyName(d.companyName.toUpperCase());
+    }).catch(() => {});
+  }, []);
+
   // Re-fetch when page, rows per page, search, or active tab changes
   useEffect(() => {
     fetchBills();
   }, [page, rowsPerPage, searchQuery, activeTab]);
+
+  // Handle export PDF
+  const handleExportPDF = async () => {
+    try {
+      const res = await fetch(`${apiBase}?limit=all&search=${encodeURIComponent(searchQuery)}`);
+      if (!res.ok) throw new Error("Failed to load data");
+      const data = await res.json();
+      if (!data.data || data.data.length === 0) {
+        dispatch(showToast({ message: "No records to export", severity: "warning" })); return;
+      }
+      await exportBillsPDF(data.data, activeTab, companyName);
+      dispatch(showToast({ message: "PDF exported successfully!", severity: "success" }));
+    } catch (err: any) {
+      if (err.message === "NO_DATA") dispatch(showToast({ message: "No records to export", severity: "warning" }));
+      else dispatch(showToast({ message: err.message || "Failed to export PDF", severity: "error" }));
+    }
+  };
+
+  // Handle export Excel
+  const handleExportExcel = async () => {
+    try {
+      const res = await fetch(`${apiBase}?limit=all&search=${encodeURIComponent(searchQuery)}`);
+      if (!res.ok) throw new Error("Failed to load data");
+      const data = await res.json();
+      if (!data.data || data.data.length === 0) {
+        dispatch(showToast({ message: "No records to export", severity: "warning" })); return;
+      }
+      exportBillsExcel(data.data, activeTab);
+      dispatch(showToast({ message: "Excel exported successfully!", severity: "success" }));
+    } catch (err: any) {
+      dispatch(showToast({ message: err.message || "Failed to export Excel", severity: "error" }));
+    }
+  };
 
   // Handle Tab Switch
   const handleTabChange = (event: React.SyntheticEvent, newValue: "CLASS" | "KARTAR") => {
@@ -507,9 +549,20 @@ export const Bills: React.FC = () => {
             Log bills, track total amount, advance & balance payments, and manage pending statuses.
           </Typography>
         </Box>
-        <Button variant="contained" color="primary" startIcon={<Plus size={18} />} onClick={handleOpenCreate} sx={{ py: 1, px: 3, fontWeight: 700 }}>
-          Create Bill
-        </Button>
+        <Box display="flex" gap={1} flexWrap="wrap" sx={{ justifyContent: { xs: "stretch", sm: "flex-end" } }}>
+          <Button variant="outlined" color="primary" startIcon={<FileSpreadsheet size={16} />} onClick={handleExportExcel}
+            sx={{ py: 0.9, px: 2, fontWeight: 700, flex: { xs: 1, sm: "initial" }, borderRadius: 2 }}>
+            Excel
+          </Button>
+          <Button variant="outlined" color="error" startIcon={<FileText size={16} />} onClick={handleExportPDF}
+            sx={{ py: 0.9, px: 2, fontWeight: 700, flex: { xs: 1, sm: "initial" }, borderRadius: 2 }}>
+            PDF
+          </Button>
+          <Button variant="contained" color="primary" startIcon={<Plus size={18} />} onClick={handleOpenCreate}
+            sx={{ py: 0.9, px: 3, fontWeight: 700, borderRadius: 2, flex: { xs: 1, sm: "initial" } }}>
+            Create Bill
+          </Button>
+        </Box>
       </Box>
 
       {/* Tabs Navigation to Separate Class & Kartar Machines */}
@@ -558,6 +611,7 @@ export const Bills: React.FC = () => {
             <Table sx={{ minWidth: 1200 }}>
               <TableHead>
                 <TableRow>
+                  <TableCell sx={{ fontWeight: 700, width: 52 }}>#</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Place</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Customer Name</TableCell>
@@ -574,17 +628,18 @@ export const Bills: React.FC = () => {
               <TableBody>
                 {bills.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={11} align="center" sx={{ py: 6 }}>
+                    <TableCell colSpan={12} align="center" sx={{ py: 6 }}>
                       <Typography color="text.secondary">
                         {searchQuery ? "No matching records found." : "No bills found for this tab. Create a new bill to begin."}
                       </Typography>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  bills.map((bill) => {
+                  bills.map((bill, idx) => {
                     const isCompleted = bill.status === 1;
                     return (
                       <TableRow key={bill.id} hover>
+                        <TableCell sx={{ color: "text.secondary", fontSize: "12px" }}>{page * rowsPerPage + idx + 1}</TableCell>
                         <TableCell>{new Date(bill.date).toLocaleDateString("en-IN")}</TableCell>
                         <TableCell>{bill.place}</TableCell>
                         <TableCell sx={{ fontWeight: 700, color: isCompleted ? "success.main" : "error.main" }}>
