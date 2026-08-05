@@ -2,9 +2,11 @@ import React, { useState } from "react";
 import { Box, Card, CardContent, Typography, TextField, Button, InputAdornment, IconButton, Alert, Paper } from "@mui/material";
 import { Lock, Mail, Eye, EyeOff, Tractor } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useAuth } from "../../context/AuthContext";
 
 export const Login: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth();
   const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -33,8 +35,7 @@ export const Login: React.FC = () => {
         throw new Error("Login succeeded but no token was returned.");
       }
 
-      localStorage.setItem("token", data.token);
-      localStorage.setItem("user", JSON.stringify(data.user));
+      login(data.token, data.user);   // sets localStorage + isAuthenticated = true in context
       navigate("/dashboard", { replace: true });
     } catch (err: any) {
       setError(err.message || "Connection to auth server failed.");

@@ -1,6 +1,7 @@
 import React from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import { ROUTES } from "./routeConstants";
+import { useAuth } from "../context/AuthContext";
 import MainLayout from "../layouts/MainLayout";
 import PrivateRoute from "./PrivateRoute";
 import Login from "../pages/Auth/Login";
@@ -12,7 +13,7 @@ import Operators from "../pages/Operators/Operators";
 import BunkDetails from "../pages/BunkDetails/BunkDetails";
 
 export const AppRoutes: React.FC = () => {
-  const isAuthenticated = localStorage.getItem("token") !== null;
+  const { isAuthenticated } = useAuth();
 
   return (
     <Routes>

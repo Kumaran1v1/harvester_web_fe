@@ -6,6 +6,7 @@ import { store } from "./app/store";
 import App from "./App";
 import { ThemeContextProvider } from "./context/ThemeContext";
 import { SocketProvider } from "./context/SocketContext";
+import { AuthProvider } from "./context/AuthContext";
 
 // Always send /api calls to the env backend base URL
 const API_BASE_URL = (
@@ -36,9 +37,11 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <Provider store={store}>
     <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
       <ThemeContextProvider>
-        <SocketProvider>
-          <App />
-        </SocketProvider>
+        <AuthProvider>
+          <SocketProvider>
+            <App />
+          </SocketProvider>
+        </AuthProvider>
       </ThemeContextProvider>
     </BrowserRouter>
   </Provider>

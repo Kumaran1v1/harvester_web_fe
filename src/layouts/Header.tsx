@@ -3,7 +3,7 @@ import { AppBar, Toolbar, IconButton, Typography, Box, Menu, MenuItem, Avatar, T
 import { LogOut, Menu as MenuIcon, Sun, Moon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../routes/routeConstants";
-
+import { useAuth } from "../context/AuthContext";
 import { useThemeMode } from "../context/ThemeContext";
 
 interface HeaderProps {
@@ -12,6 +12,7 @@ interface HeaderProps {
 
 export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const navigate = useNavigate();
+  const { logout } = useAuth();
   const { mode, toggleTheme } = useThemeMode();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
 
@@ -37,9 +38,8 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
 
   const handleLogout = () => {
     handleMenuClose();
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    navigate(ROUTES.LOGIN);
+    logout();           // clears localStorage AND sets isAuthenticated = false in context
+    navigate(ROUTES.LOGIN, { replace: true });
   };
 
   const isDark = mode === "dark";
