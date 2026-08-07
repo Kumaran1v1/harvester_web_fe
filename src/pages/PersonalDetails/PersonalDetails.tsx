@@ -8,7 +8,7 @@ import {
 import {
   User, MapPin, Tractor, Phone, Mail, Edit, HardDrive, FileText,
   UploadCloud, Download, Eye, Trash2, Plus, Building2, Hash,
-  FileCheck2, Shield, PhoneCall, GraduationCap
+  FileCheck2, Shield, PhoneCall, GraduationCap, Camera
 } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { showToast } from "../../redux/toast/toastSlice";
@@ -45,7 +45,8 @@ export const PersonalDetails: React.FC = () => {
     registrationNo: "",
     gstin: "",
     city: "",
-    address: ""
+    address: "",
+    profileImage: ""
   });
 
   const [formData, setFormData] = useState({ ...profile });
@@ -90,7 +91,8 @@ export const PersonalDetails: React.FC = () => {
         registrationNo: data.registrationNo || "",
         gstin: data.gstin || "",
         city: data.city || "",
-        address: data.address || ""
+        address: data.address || "",
+        profileImage: data.profileImage || ""
       };
       setProfile(loadedData);
       setFormData(loadedData);
@@ -170,6 +172,43 @@ export const PersonalDetails: React.FC = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const handleProfileImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 5 * 1024 * 1024) {
+      dispatch(showToast({ message: "Image size should be less than 5MB", severity: "warning" }));
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const base64Image = reader.result as string;
+      setSaving(true);
+      try {
+        const res = await fetch("/api/auth/profile", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...profile, profileImage: base64Image })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Failed to upload profile picture");
+
+        setProfile(prev => ({ ...prev, profileImage: base64Image }));
+        const stored = JSON.parse(localStorage.getItem("user") || "{}");
+        localStorage.setItem("user", JSON.stringify({ ...stored, profileImage: base64Image }));
+        window.dispatchEvent(new Event("profile-updated"));
+
+        dispatch(showToast({ message: "Profile picture updated successfully!", severity: "success" }));
+      } catch (err: any) {
+        dispatch(showToast({ message: err.message || "Error uploading image", severity: "error" }));
+      } finally {
+        setSaving(false);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   // ── Document Upload Handlers ──
@@ -323,9 +362,50 @@ export const PersonalDetails: React.FC = () => {
           {/* Header row with Company Name, Owner Name and Edit Button */}
           <Box display="flex" justifyContent="space-between" alignItems={{ xs: "flex-start", sm: "center" }} sx={{ mb: 3, flexDirection: { xs: "column", sm: "row" }, gap: 2 }}>
             <Box display="flex" alignItems="center" gap={2}>
-              <Avatar sx={{ width: 54, height: 54, bgcolor: "rgba(13, 148, 136, 0.15)", color: "#2dd4bf", fontWeight: 900, fontSize: "1.3rem" }}>
-                {profile.companyName ? profile.companyName.charAt(0).toUpperCase() : profile.name ? profile.name.charAt(0).toUpperCase() : "C"}
-              </Avatar>
+              {/* Profile Image Avatar with Interactive Camera Upload Badge */}
+              <Box sx={{ position: "relative" }}>
+                <Avatar
+                  src={profile.profileImage || undefined}
+                  sx={{
+                    width: 64,
+                    height: 64,
+                    bgcolor: "rgba(13, 148, 136, 0.15)",
+                    color: "#2dd4bf",
+                    fontWeight: 900,
+                    fontSize: "1.5rem",
+                    border: "3px solid #0d9488",
+                    boxShadow: "0 4px 14px rgba(13, 148, 136, 0.3)"
+                  }}
+                >
+                  {!profile.profileImage && (
+                    profile.companyName ? profile.companyName.charAt(0).toUpperCase() : profile.name ? profile.name.charAt(0).toUpperCase() : "C"
+                  )}
+                </Avatar>
+                <Tooltip title="Upload Profile Picture" arrow placement="top">
+                  <IconButton
+                    component="label"
+                    size="small"
+                    sx={{
+                      position: "absolute",
+                      bottom: -4,
+                      right: -4,
+                      bgcolor: "primary.main",
+                      color: "#fff",
+                      p: 0.5,
+                      boxShadow: "0 2px 8px rgba(0,0,0,0.4)",
+                      "&:hover": { bgcolor: "primary.dark" }
+                    }}
+                  >
+                    <Camera size={14} />
+                    <input
+                      type="file"
+                      hidden
+                      accept="image/*"
+                      onChange={handleProfileImageUpload}
+                    />
+                  </IconButton>
+                </Tooltip>
+              </Box>
               <Box>
                 <Typography variant="h6" fontWeight={900} sx={{ color: "text.primary", fontSize: { xs: "1.15rem", sm: "1.3rem" } }}>
                   {profile.companyName || "Company Name Not Set"}

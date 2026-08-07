@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { AppBar, Toolbar, IconButton, Typography, Box, Menu, MenuItem, Avatar, Tooltip } from "@mui/material";
 import { LogOut, Menu as MenuIcon, Sun, Moon } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -15,11 +15,39 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
   const { logout } = useAuth();
   const { mode, toggleTheme } = useThemeMode();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [profileImage, setProfileImage] = useState<string | null>(() => {
+    const cached = JSON.parse(localStorage.getItem("user") || "{}");
+    return cached.profileImage || null;
+  });
 
   const user = JSON.parse(localStorage.getItem("user") || "{}");
   const userName = user.name || "Guest User";
   const userRole = (typeof user.role === "object" ? user.role?.roleCode : user.role) || "GUEST";
   const companyName = user.companyName || "Harvester MS";
+
+  const fetchProfile = async () => {
+    try {
+      const res = await fetch("/api/auth/profile");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.profileImage) {
+          setProfileImage(data.profileImage);
+          const localUser = JSON.parse(localStorage.getItem("user") || "{}");
+          localStorage.setItem("user", JSON.stringify({ ...localUser, profileImage: data.profileImage }));
+        }
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchProfile();
+    const handleProfileUpdate = () => {
+      const cached = JSON.parse(localStorage.getItem("user") || "{}");
+      setProfileImage(cached.profileImage || null);
+    };
+    window.addEventListener("profile-updated", handleProfileUpdate);
+    return () => window.removeEventListener("profile-updated", handleProfileUpdate);
+  }, []);
 
   const getInitials = (nameStr: string) => {
     if (!nameStr) return "U";
@@ -116,15 +144,17 @@ export const Header: React.FC<HeaderProps> = ({ onToggleSidebar }) => {
               sx={{ ml: 0.5 }}
             >
               <Avatar
+                src={profileImage || undefined}
                 sx={{
                   bgcolor: "primary.main",
-                  width: 30,
-                  height: 30,
+                  width: 32,
+                  height: 32,
                   fontSize: "0.75rem",
                   fontWeight: 700,
+                  border: "2px solid #0d9488"
                 }}
               >
-                {getInitials(userName)}
+                {!profileImage && getInitials(userName)}
               </Avatar>
             </IconButton>
           </Tooltip>
