@@ -36,6 +36,13 @@ interface BillPayment {
   remarks: string | null;
 }
 
+import { MonthFilterBar, MonthFilterState } from "../../components/MonthFilterBar";
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
 export const Bills: React.FC = () => {
   const dispatch = useDispatch();
   const [bills, setBills] = useState<Bill[]>([]);
@@ -44,8 +51,14 @@ export const Bills: React.FC = () => {
   // Tab control: "CLASS" or "KARTAR"
   const [activeTab, setActiveTab] = useState<"CLASS" | "KARTAR">("KARTAR");
 
-  // Search & Pagination states
+  // Search, Month & Pagination states
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterState, setFilterState] = useState<MonthFilterState>({
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+    isOverall: false,
+  });
+
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
   const [totalCount, setTotalCount] = useState(0);
@@ -110,10 +123,19 @@ export const Bills: React.FC = () => {
   // Dynamic API base depending on selected machine tab
   const apiBase = activeTab === "CLASS" ? "/api/class-bills" : "/api/kartar-bills";
 
+  // Label for period being viewed/exported
+  const periodLabel = filterState.isOverall
+    ? "Overall (All-Time)"
+    : `${MONTH_NAMES[filterState.month - 1]} ${filterState.year}`;
+
   const fetchBills = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${apiBase}?page=${page}&limit=${rowsPerPage}&search=${encodeURIComponent(searchQuery)}`);
+      let url = `${apiBase}?page=${page}&limit=${rowsPerPage}&search=${encodeURIComponent(searchQuery)}`;
+      if (!filterState.isOverall) {
+        url += `&month=${filterState.month}&year=${filterState.year}`;
+      }
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to load bills");
       const data = await res.json();
       setBills(data.data);
@@ -133,21 +155,25 @@ export const Bills: React.FC = () => {
     }).catch(() => {});
   }, []);
 
-  // Re-fetch when page, rows per page, search, or active tab changes
+  // Re-fetch when page, rows per page, search, active tab, month or overall mode changes
   useEffect(() => {
     fetchBills();
-  }, [page, rowsPerPage, searchQuery, activeTab]);
+  }, [page, rowsPerPage, searchQuery, activeTab, filterState]);
 
   // Handle export PDF
   const handleExportPDF = async () => {
     try {
-      const res = await fetch(`${apiBase}?limit=all&search=${encodeURIComponent(searchQuery)}`);
+      let url = `${apiBase}?limit=all&search=${encodeURIComponent(searchQuery)}`;
+      if (!filterState.isOverall) {
+        url += `&month=${filterState.month}&year=${filterState.year}`;
+      }
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to load data");
       const data = await res.json();
       if (!data.data || data.data.length === 0) {
         dispatch(showToast({ message: "No records to export", severity: "warning" })); return;
       }
-      await exportBillsPDF(data.data, activeTab, companyName);
+      await exportBillsPDF(data.data, activeTab, companyName, periodLabel);
       dispatch(showToast({ message: "PDF exported successfully!", severity: "success" }));
     } catch (err: any) {
       if (err.message === "NO_DATA") dispatch(showToast({ message: "No records to export", severity: "warning" }));
@@ -158,13 +184,17 @@ export const Bills: React.FC = () => {
   // Handle export Excel
   const handleExportExcel = async () => {
     try {
-      const res = await fetch(`${apiBase}?limit=all&search=${encodeURIComponent(searchQuery)}`);
+      let url = `${apiBase}?limit=all&search=${encodeURIComponent(searchQuery)}`;
+      if (!filterState.isOverall) {
+        url += `&month=${filterState.month}&year=${filterState.year}`;
+      }
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to load data");
       const data = await res.json();
       if (!data.data || data.data.length === 0) {
         dispatch(showToast({ message: "No records to export", severity: "warning" })); return;
       }
-      exportBillsExcel(data.data, activeTab);
+      exportBillsExcel(data.data, activeTab, periodLabel);
       dispatch(showToast({ message: "Excel exported successfully!", severity: "success" }));
     } catch (err: any) {
       dispatch(showToast({ message: err.message || "Failed to export Excel", severity: "error" }));
@@ -549,17 +579,17 @@ export const Bills: React.FC = () => {
             Log bills, track total amount, advance & balance payments, and manage pending statuses.
           </Typography>
         </Box>
-        <Box display="flex" gap={1} flexWrap="wrap" sx={{ justifyContent: { xs: "stretch", sm: "flex-end" } }}>
+        <Box display="flex" gap={1} flexWrap="nowrap" sx={{ justifyContent: { xs: "stretch", sm: "flex-end" }, width: { xs: "100%", sm: "auto" } }}>
           <Button variant="outlined" color="primary" startIcon={<FileSpreadsheet size={16} />} onClick={handleExportExcel}
-            sx={{ py: 0.9, px: 2, fontWeight: 700, flex: { xs: 1, sm: "initial" }, borderRadius: 2 }}>
+            sx={{ py: 0.8, px: { xs: 1.2, sm: 2 }, fontWeight: 700, flex: 1, borderRadius: 2, whiteSpace: "nowrap", fontSize: { xs: "12px", sm: "14px" } }}>
             Excel
           </Button>
           <Button variant="outlined" color="error" startIcon={<FileText size={16} />} onClick={handleExportPDF}
-            sx={{ py: 0.9, px: 2, fontWeight: 700, flex: { xs: 1, sm: "initial" }, borderRadius: 2 }}>
+            sx={{ py: 0.8, px: { xs: 1.2, sm: 2 }, fontWeight: 700, flex: 1, borderRadius: 2, whiteSpace: "nowrap", fontSize: { xs: "12px", sm: "14px" } }}>
             PDF
           </Button>
-          <Button variant="contained" color="primary" startIcon={<Plus size={18} />} onClick={handleOpenCreate}
-            sx={{ py: 0.9, px: 3, fontWeight: 700, borderRadius: 2, flex: { xs: 1, sm: "initial" } }}>
+          <Button variant="contained" color="primary" startIcon={<Plus size={16} />} onClick={handleOpenCreate}
+            sx={{ py: 0.8, px: { xs: 1.5, sm: 2.5 }, fontWeight: 700, borderRadius: 2, flex: 1.5, whiteSpace: "nowrap", fontSize: { xs: "12px", sm: "14px" } }}>
             Create Bill
           </Button>
         </Box>
@@ -581,23 +611,46 @@ export const Bills: React.FC = () => {
         <Tab value="CLASS" label="Class Bills" />
       </Tabs>
 
-      {/* Action Bar: Search Input */}
-      <Box sx={{ mb: 3 }}>
-        <TextField
-          placeholder="Search by customer name, place, or contact..."
-          variant="outlined"
-          size="small"
-          fullWidth
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchQuery(e.target.value);
-            setPage(0);
-          }}
-          InputProps={{
-            startAdornment: <Search size={18} style={{ marginRight: 8, color: "#94a3b8" }} />
-          }}
-          sx={{ maxWidth: { xs: "100%", sm: 380 } }}
-        />
+      {/* Action Bar: Search Input & Responsive MonthFilterBar */}
+      <Grid container spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
+        <Grid item xs={12} md={5}>
+          <TextField
+            placeholder="Search by customer name, place, or contact..."
+            variant="outlined"
+            size="small"
+            fullWidth
+            value={searchQuery}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(0);
+            }}
+            InputProps={{
+              startAdornment: <Search size={18} style={{ marginRight: 8, color: "#94a3b8" }} />
+            }}
+            sx={{
+              bgcolor: "background.paper",
+              borderRadius: 2,
+              "& .MuiOutlinedInput-root": { borderRadius: 2 }
+            }}
+          />
+        </Grid>
+
+        <Grid item xs={12} md={7}>
+          <MonthFilterBar
+            filterState={filterState}
+            onChange={(newState) => {
+              setFilterState(newState);
+              setPage(0);
+            }}
+          />
+        </Grid>
+      </Grid>
+
+      {/* Active Period Indicator */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5, px: 0.5 }}>
+        <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary" }}>
+          Viewing Period: <strong style={{ color: "#0d9488" }}>{periodLabel}</strong> ({totalCount} bill{totalCount === 1 ? "" : "s"} found)
+        </Typography>
       </Box>
 
       {/* Bills Table */}

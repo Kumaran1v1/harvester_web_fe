@@ -42,7 +42,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onToggleSidebar })
   const drawerContent = (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%" }}>
       {/* Brand Header */}
-      <Box sx={{ p: 2.5, display: "flex", flexDirection: "column", gap: 0.5, borderBottom: "1px solid", borderColor: "divider" }}>
+      <Box sx={{ p: 2.5, display: { xs: "none", md: "flex" }, flexDirection: "column", gap: 0.5, borderBottom: "1px solid", borderColor: "divider" }}>
         <Typography variant="h6" sx={{ fontWeight: 800, color: "text.primary", display: "flex", alignItems: "center", gap: 1 }}>
           <Tractor size={22} style={{ color: "#0d9488" }} />
           {companyName}
@@ -119,6 +119,8 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onToggleSidebar })
           "& .MuiDrawer-paper": {
             boxSizing: "border-box",
             width: SIDEBAR_WIDTH,
+            top: 56,
+            height: "calc(100vh - 56px)",
             backgroundColor: "background.paper",
             borderRight: "1px solid",
             borderColor: "divider",

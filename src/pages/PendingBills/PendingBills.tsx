@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import {
   Box, Card, Typography, Button, TextField, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Paper, CircularProgress, Chip, TablePagination
+  TableContainer, TableHead, TableRow, Paper, CircularProgress, Chip, TablePagination, Grid
 } from "@mui/material";
 import { CreditCard, Search, FileSpreadsheet, FileText } from "lucide-react";
 import { useDispatch } from "react-redux";
@@ -23,17 +23,34 @@ interface PendingBill {
   machineType: "CLASS" | "KARTAR";
 }
 
+import { MonthFilterBar, MonthFilterState } from "../../components/MonthFilterBar";
+
+const MONTH_NAMES = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December"
+];
+
 export const PendingBills: React.FC = () => {
   const dispatch = useDispatch();
   const [pendingBills, setPendingBills] = useState<PendingBill[]>([]);
   const [loading, setLoading] = useState(true);
   const [companyName, setCompanyName] = useState("HARVESTER MANAGEMENT SYSTEM");
 
-  // Search & Pagination states
+  // Search, Month & Pagination states
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterState, setFilterState] = useState<MonthFilterState>({
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
+    isOverall: false,
+  });
+
   const [page, setPage] = useState(0);
   const [rowsPerPage, setRowsPerPage] = useState(50);
   const [totalCount, setTotalCount] = useState(0);
+
+  const periodLabel = filterState.isOverall
+    ? "Overall (All-Time)"
+    : `${MONTH_NAMES[filterState.month - 1]} ${filterState.year}`;
 
   // Load company name from profile
   useEffect(() => {
@@ -46,7 +63,11 @@ export const PendingBills: React.FC = () => {
   const fetchPendingBills = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`/api/pending-bills?page=${page}&limit=${rowsPerPage}&search=${encodeURIComponent(searchQuery)}`);
+      let url = `/api/pending-bills?page=${page}&limit=${rowsPerPage}&search=${encodeURIComponent(searchQuery)}`;
+      if (!filterState.isOverall) {
+        url += `&month=${filterState.month}&year=${filterState.year}`;
+      }
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to load pending bills");
       const data = await res.json();
       setPendingBills(data.data);
@@ -60,12 +81,16 @@ export const PendingBills: React.FC = () => {
 
   useEffect(() => {
     fetchPendingBills();
-  }, [page, rowsPerPage, searchQuery]);
+  }, [page, rowsPerPage, searchQuery, filterState]);
 
   // Export to CSV (Excel formatted download)
   const handleExportExcel = async () => {
     try {
-      const res = await fetch(`/api/pending-bills?limit=all&search=${encodeURIComponent(searchQuery)}`);
+      let url = `/api/pending-bills?limit=all&search=${encodeURIComponent(searchQuery)}`;
+      if (!filterState.isOverall) {
+        url += `&month=${filterState.month}&year=${filterState.year}`;
+      }
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to load data for export");
       const data = await res.json();
       const exportData: PendingBill[] = data.data;
@@ -82,7 +107,11 @@ export const PendingBills: React.FC = () => {
   // Export to PDF using html2pdf.js
   const handleExportPDF = async () => {
     try {
-      const res = await fetch(`/api/pending-bills?limit=all&search=${encodeURIComponent(searchQuery)}`);
+      let url = `/api/pending-bills?limit=all&search=${encodeURIComponent(searchQuery)}`;
+      if (!filterState.isOverall) {
+        url += `&month=${filterState.month}&year=${filterState.year}`;
+      }
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Failed to load data for export");
       const data = await res.json();
       const exportData: PendingBill[] = data.data;
@@ -109,30 +138,53 @@ export const PendingBills: React.FC = () => {
             View outstanding customer debts and balance payments across Class and Kartar machines.
           </Typography>
         </Box>
-        <Box display="flex" gap={1} flexWrap="wrap">
+        <Box display="flex" gap={1} flexWrap="nowrap" sx={{ justifyContent: { xs: "stretch", sm: "flex-end" }, width: { xs: "100%", sm: "auto" } }}>
           <Button variant="outlined" color="primary" startIcon={<FileSpreadsheet size={16} />} onClick={handleExportExcel}
-            sx={{ py: 0.8, px: 2, fontWeight: 700, flex: { xs: 1, sm: "initial" }, borderRadius: 2 }}>
+            sx={{ py: 0.8, px: { xs: 1.5, sm: 2 }, fontWeight: 700, flex: 1, borderRadius: 2, whiteSpace: "nowrap", fontSize: { xs: "12px", sm: "14px" } }}>
             Excel
           </Button>
           <Button variant="outlined" color="error" startIcon={<FileText size={16} />} onClick={handleExportPDF}
-            sx={{ py: 0.8, px: 2, fontWeight: 700, flex: { xs: 1, sm: "initial" }, borderRadius: 2 }}>
+            sx={{ py: 0.8, px: { xs: 1.5, sm: 2 }, fontWeight: 700, flex: 1, borderRadius: 2, whiteSpace: "nowrap", fontSize: { xs: "12px", sm: "14px" } }}>
             PDF
           </Button>
         </Box>
       </Box>
 
-      {/* Search Bar */}
-      <Box sx={{ mb: 3 }}>
-        <TextField
-          placeholder="Search by customer, place, contact..."
-          variant="outlined"
-          size="small"
-          fullWidth
-          value={searchQuery}
-          onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
-          sx={{ maxWidth: { xs: "100%", sm: 380 } }}
-          InputProps={{ startAdornment: <Search size={18} style={{ marginRight: 8, color: "#94a3b8" }} /> }}
-        />
+      {/* Action Bar: Search Input & Responsive MonthFilterBar */}
+      <Grid container spacing={1.5} alignItems="center" sx={{ mb: 3 }}>
+        <Grid item xs={12} md={5}>
+          <TextField
+            placeholder="Search by customer, place, contact..."
+            variant="outlined"
+            size="small"
+            fullWidth
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setPage(0); }}
+            InputProps={{ startAdornment: <Search size={18} style={{ marginRight: 8, color: "#94a3b8" }} /> }}
+            sx={{
+              bgcolor: "background.paper",
+              borderRadius: 2,
+              "& .MuiOutlinedInput-root": { borderRadius: 2 }
+            }}
+          />
+        </Grid>
+
+        <Grid item xs={12} md={7}>
+          <MonthFilterBar
+            filterState={filterState}
+            onChange={(newState) => {
+              setFilterState(newState);
+              setPage(0);
+            }}
+          />
+        </Grid>
+      </Grid>
+
+      {/* Active Period Indicator */}
+      <Box display="flex" justifyContent="space-between" alignItems="center" sx={{ mb: 1.5, px: 0.5 }}>
+        <Typography variant="body2" sx={{ fontWeight: 700, color: "text.secondary" }}>
+          Viewing Period: <strong style={{ color: "#0d9488" }}>{periodLabel}</strong> ({totalCount} pending bill{totalCount === 1 ? "" : "s"} found)
+        </Typography>
       </Box>
 
       {/* Pending Bills Table */}

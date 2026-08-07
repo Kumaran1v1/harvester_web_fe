@@ -8,7 +8,7 @@ import {
   DialogContent, DialogActions, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Paper, CircularProgress,
   IconButton, Tooltip, Grid, Tabs, Tab, ButtonGroup, Chip,
-  FormControl, InputLabel, Select, MenuItem, Divider
+  FormControl, InputLabel, Select, MenuItem, Divider, useMediaQuery, useTheme
 } from "@mui/material";
 import { Users, Plus, Trash2, History, Banknote, Search, ChevronLeft, ChevronRight, Pencil, FileDown } from "lucide-react";
 import { useDispatch } from "react-redux";
@@ -43,6 +43,8 @@ interface PaymentHistory {
 }
 
 export const Operators: React.FC = () => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   const dispatch = useDispatch();
   const [activeTab, setActiveTab] = useState(0); // 0 = Attendance Grid, 1 = Salary & Wages
 
@@ -616,18 +618,16 @@ export const Operators: React.FC = () => {
       <Tabs
         value={activeTab}
         onChange={handleTabChange}
-        variant="scrollable"
-        scrollButtons="auto"
-        allowScrollButtonsMobile
+        variant="fullWidth"
         sx={{
           mb: 3,
           borderBottom: 1,
           borderColor: "divider",
-          "& .MuiTab-root": { fontWeight: 700, fontSize: { xs: "13px", sm: "14px" } }
+          "& .MuiTab-root": { fontWeight: 700, fontSize: { xs: "12px", sm: "14px" }, px: 1 }
         }}
       >
-        <Tab value={0} label="Attendance Log Sheet" />
-        <Tab value={1} label="Salary & Wages Summary" />
+        <Tab value={0} label="Attendance Sheet" />
+        <Tab value={1} label="Salary Summary" />
       </Tabs>
 
       {/* RENDER ACTIVE TAB */}
@@ -637,21 +637,21 @@ export const Operators: React.FC = () => {
            ========================================== */
         <Box>
           {/* Header Controls: Compact Select Dropdown Filter (Week View vs Month View) */}
-          <Box display="flex" alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between" sx={{ mb: 3, background: "rgba(255,255,255,0.03)", p: { xs: 1.5, sm: 2 }, borderRadius: 2.5, border: "1px solid rgba(255,255,255,0.08)", flexDirection: { xs: "column", sm: "row" }, gap: 1.5 }}>
+          <Box display="flex" alignItems={{ xs: "stretch", sm: "center" }} justifyContent="space-between" sx={{ mb: 3, background: "rgba(255,255,255,0.03)", p: { xs: 1.2, sm: 2 }, borderRadius: 2.5, border: "1px solid rgba(255,255,255,0.08)", flexDirection: { xs: "column", sm: "row" }, gap: 1.5 }}>
             {/* View Select Toggle Group */}
             <Box display="flex" alignItems="center" sx={{ width: { xs: "100%", sm: "auto" } }}>
               <ButtonGroup size="small" variant="outlined" color="primary" fullWidth sx={{ borderRadius: 2 }}>
                 <Button
                   onClick={() => setViewMode("WEEK")}
                   variant={viewMode === "WEEK" ? "contained" : "outlined"}
-                  sx={{ fontWeight: 800, textTransform: "none", py: 0.8 }}
+                  sx={{ fontWeight: 800, textTransform: "none", py: 0.8, fontSize: { xs: "12px", sm: "13px" }, whiteSpace: "nowrap" }}
                 >
-                  Week View (7 Days)
+                  {isMobile ? "Week View" : "Week View (7 Days)"}
                 </Button>
                 <Button
                   onClick={() => setViewMode("MONTH")}
                   variant={viewMode === "MONTH" ? "contained" : "outlined"}
-                  sx={{ fontWeight: 800, textTransform: "none", py: 0.8 }}
+                  sx={{ fontWeight: 800, textTransform: "none", py: 0.8, fontSize: { xs: "12px", sm: "13px" }, whiteSpace: "nowrap" }}
                 >
                   Month View
                 </Button>
@@ -660,94 +660,68 @@ export const Operators: React.FC = () => {
 
             {/* Date / Month Navigation Shift Controls */}
             {viewMode === "MONTH" ? (
-              <Box display="flex" alignItems="center" justifyContent={{ xs: "space-between", sm: "flex-end" }} gap={1} sx={{ width: { xs: "100%", sm: "auto" }, flexWrap: "wrap" }}>
+              <Box display="flex" alignItems="center" justifyContent={{ xs: "space-between", sm: "flex-end" }} gap={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
                 <Box display="flex" alignItems="center" gap={0.5}>
                   <IconButton onClick={() => handleShiftMonth(-1)} size="small" color="primary">
-                    <ChevronLeft size={20} />
+                    <ChevronLeft size={18} />
                   </IconButton>
-                  <Typography variant="body2" sx={{ fontWeight: 800, fontSize: { xs: "12px", sm: "14px" } }}>
+                  <Typography variant="body2" sx={{ fontWeight: 800, fontSize: { xs: "12px", sm: "14px" }, whiteSpace: "nowrap" }}>
                     Month Shift
                   </Typography>
                   <IconButton onClick={() => handleShiftMonth(1)} size="small" color="primary">
-                    <ChevronRight size={20} />
+                    <ChevronRight size={18} />
                   </IconButton>
                 </Box>
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <DatePicker
+                
+                <FormControl size="small" sx={{ width: { xs: "100%", sm: 160 }, flex: { xs: 1, sm: "initial" } }}>
+                  <InputLabel id="op-selected-month-label" sx={{ fontSize: "12px" }}>Selected Month</InputLabel>
+                  <Select
+                    labelId="op-selected-month-label"
+                    value={selectedMonth}
                     label="Selected Month"
-                    views={["year", "month"]}
-                    value={dayjs(selectedMonth)}
-                    onChange={(newValue) => {
-                      if (newValue) {
-                        setViewMode("MONTH");
-                        setSelectedMonth(newValue.format("YYYY-MM"));
-                      }
+                    onChange={(e) => {
+                      setViewMode("MONTH");
+                      setSelectedMonth(e.target.value);
                     }}
-                    minDate={dayjs().subtract(2, "year").startOf("year")}
-                    maxDate={dayjs()}
-                    format="MMM YYYY"
-                    slotProps={{
-                      textField: {
-                        size: "small",
-                        sx: { width: { xs: "100%", sm: 160 }, flex: { xs: 1, sm: "initial" } }
-                      },
-                      popper: {
-                        placement: "bottom-end",
-                        modifiers: [
-                          {
-                            name: "preventOverflow",
-                            options: {
-                              boundary: "viewport"
-                            }
-                          }
-                        ]
-                      }
-                    }}
-                  />
-                </LocalizationProvider>
+                    sx={{ borderRadius: 2, fontWeight: 700, fontSize: "13px" }}
+                  >
+                    {monthDropdownOptions.map((opt) => (
+                      <MenuItem key={opt.value} value={opt.value} sx={{ fontWeight: 600, fontSize: "13px" }}>
+                        {opt.label}
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
               </Box>
             ) : (
-              <Box display="flex" alignItems="center" justifyContent={{ xs: "space-between", sm: "flex-end" }} gap={1} sx={{ width: { xs: "100%", sm: "auto" }, flexWrap: "wrap" }}>
+              <Box display="flex" alignItems="center" justifyContent={{ xs: "space-between", sm: "flex-end" }} gap={1} sx={{ width: { xs: "100%", sm: "auto" } }}>
                 <Box display="flex" alignItems="center" gap={0.5}>
                   <IconButton onClick={() => handleShiftWeek(-7)} size="small" color="primary">
-                    <ChevronLeft size={20} />
+                    <ChevronLeft size={18} />
                   </IconButton>
-                  <Typography variant="body2" sx={{ fontWeight: 800, fontSize: { xs: "12px", sm: "14px" } }}>
+                  <Typography variant="body2" sx={{ fontWeight: 800, fontSize: { xs: "12px", sm: "14px" }, whiteSpace: "nowrap" }}>
                     Week Shift
                   </Typography>
                   <IconButton onClick={() => handleShiftWeek(7)} size="small" color="primary">
-                    <ChevronRight size={20} />
+                    <ChevronRight size={18} />
                   </IconButton>
                 </Box>
-                <LocalizationProvider dateAdapter={AdapterDayjs}>
-                  <DatePicker
-                    label="Week Starting From"
-                    value={dayjs(weekStart)}
-                    onChange={(newValue) => {
-                      if (newValue) {
-                        setWeekStart(newValue.format("YYYY-MM-DD"));
-                      }
-                    }}
-                    format="DD/MMM/YYYY"
-                    slotProps={{
-                      textField: {
-                        size: "small",
-                        sx: { width: { xs: "100%", sm: 160 }, flex: { xs: 1, sm: "initial" } }
-                      },
-                      popper: {
-                        placement: "bottom-end",
-                        modifiers: [
-                          {
-                            name: "preventOverflow",
-                            options: {
-                              boundary: "viewport"
-                            }
-                          }
-                        ]
-                      }
-                    }}
-                  />
-                </LocalizationProvider>
+
+                <TextField
+                  type="date"
+                  label="Week Starting From"
+                  size="small"
+                  value={weekStart}
+                  onChange={(e) => {
+                    if (e.target.value) setWeekStart(e.target.value);
+                  }}
+                  InputLabelProps={{ shrink: true }}
+                  sx={{
+                    width: { xs: "100%", sm: 170 },
+                    flex: { xs: 1, sm: "initial" },
+                    "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: "13px", fontWeight: 700 }
+                  }}
+                />
               </Box>
             )}
           </Box>
@@ -894,7 +868,7 @@ export const Operators: React.FC = () => {
                 <IconButton onClick={() => handleShiftSalaryMonth(-1)} size="small" color="primary">
                   <ChevronLeft size={20} />
                 </IconButton>
-                <Typography variant="body2" sx={{ fontWeight: 800, fontSize: "14px" }}>
+                <Typography variant="body2" sx={{ fontWeight: 800, fontSize: "14px", whiteSpace: "nowrap" }}>
                   Salary Month
                 </Typography>
                 <IconButton 
@@ -907,38 +881,24 @@ export const Operators: React.FC = () => {
                 </IconButton>
               </Box>
 
-              <LocalizationProvider dateAdapter={AdapterDayjs}>
-                <DatePicker
-                  label="Select Month"
-                  views={["year", "month"]}
-                  value={dayjs(salaryMonth)}
-                  onChange={(newValue) => {
-                    if (newValue) {
-                      setSalaryMonth(newValue.format("YYYY-MM"));
-                    }
-                  }}
-                  minDate={dayjs().subtract(2, "year").startOf("year")}
-                  maxDate={dayjs(currentMonthStr)}
-                  format="MMM YYYY"
-                  slotProps={{
-                    textField: {
-                      size: "small",
-                      sx: { width: { xs: "100%", sm: 160 } }
-                    },
-                    popper: {
-                      placement: "bottom-end",
-                      modifiers: [
-                        {
-                          name: "preventOverflow",
-                          options: {
-                            boundary: "viewport"
-                          }
-                        }
-                      ]
-                    }
-                  }}
-                />
-              </LocalizationProvider>
+              <TextField
+                type="month"
+                label="Select Month"
+                size="small"
+                value={salaryMonth}
+                onChange={(e) => {
+                  if (e.target.value) {
+                    setSalaryMonth(e.target.value);
+                  }
+                }}
+                InputLabelProps={{ shrink: true }}
+                sx={{
+                  width: { xs: "100%", sm: 160 },
+                  bgcolor: "background.paper",
+                  borderRadius: 2,
+                  "& .MuiOutlinedInput-root": { borderRadius: 2, fontSize: "13px", fontWeight: 700 }
+                }}
+              />
             </Box>
           </Box>
 

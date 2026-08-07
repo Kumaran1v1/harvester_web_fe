@@ -27,7 +27,8 @@ const loadHtml2Pdf = (): Promise<any> => {
 export const exportBillsPDF = async (
   exportData: Bill[],
   activeTab: "CLASS" | "KARTAR",
-  companyName: string
+  companyName: string,
+  periodLabel: string = "Overall (All-Time)"
 ): Promise<void> => {
   const html2pdfLib = await loadHtml2Pdf();
   if (exportData.length === 0) throw new Error("NO_DATA");
@@ -67,12 +68,13 @@ export const exportBillsPDF = async (
     <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #cbd5e1;padding-bottom:14px;margin-bottom:18px;">
       <div>
         <h1 style="font-size:20px;font-weight:800;margin:0;color:#0d9488;">${companyName}</h1>
-        <p style="font-size:12px;color:#64748b;margin:3px 0 0 0;font-weight:500;">${tabLabel} Bills Registry</p>
+        <p style="font-size:12px;color:#64748b;margin:3px 0 0 0;font-weight:500;">${tabLabel} Bills Registry (${periodLabel})</p>
       </div>
       <span style="padding:6px 12px;font-weight:700;font-size:11px;color:#065f46;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:6px;">BILLS STATEMENT</span>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:14px;background:#f8fafc;padding:14px;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:20px;">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;background:#f8fafc;padding:14px;border:1px solid #e2e8f0;border-radius:6px;margin-bottom:20px;">
       <div><span style="font-size:10px;text-transform:uppercase;color:#64748b;font-weight:600;display:block;">Statement Date</span><strong style="font-size:13px;color:#0f172a;">${today}</strong></div>
+      <div><span style="font-size:10px;text-transform:uppercase;color:#64748b;font-weight:600;display:block;">Period</span><strong style="font-size:13px;color:#0d9488;">${periodLabel}</strong></div>
       <div><span style="font-size:10px;text-transform:uppercase;color:#64748b;font-weight:600;display:block;">Machine Type</span><strong style="font-size:13px;color:#0f172a;">${tabLabel}</strong></div>
       <div><span style="font-size:10px;text-transform:uppercase;color:#64748b;font-weight:600;display:block;">Total Records</span><strong style="font-size:13px;color:#0f172a;">${exportData.length} bills</strong></div>
     </div>
@@ -115,7 +117,7 @@ export const exportBillsPDF = async (
 
   const opt = {
     margin: 8,
-    filename: `${activeTab.toLowerCase()}_bills_${new Date().toISOString().split("T")[0]}.pdf`,
+    filename: `${activeTab.toLowerCase()}_bills_${periodLabel.toLowerCase().replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.pdf`,
     image: { type: "jpeg", quality: 0.98 },
     html2canvas: { scale: 2, useCORS: true },
     jsPDF: { unit: "mm", format: "a4", orientation: "landscape" }
@@ -125,7 +127,8 @@ export const exportBillsPDF = async (
 
 export const exportBillsExcel = (
   exportData: Bill[],
-  activeTab: "CLASS" | "KARTAR"
+  activeTab: "CLASS" | "KARTAR",
+  periodLabel: string = "Overall (All-Time)"
 ): void => {
   const headers = ["S.No", "Date", "Customer Name", "Contact", "Place", "Time (Hours)", "Total Amount", "Advance", "Balance", "Status", "Remarks"];
   const rows = exportData.map((b, i) => [
@@ -141,6 +144,6 @@ export const exportBillsExcel = (
     + [headers.join(","), ...rows.map(r => r.map(v => `"${v.toString().replace(/"/g, '""')}"`).join(","))].join("\n");
   const link = document.createElement("a");
   link.setAttribute("href", encodeURI(csvContent));
-  link.setAttribute("download", `${activeTab.toLowerCase()}_bills_${new Date().toISOString().split("T")[0]}.csv`);
+  link.setAttribute("download", `${activeTab.toLowerCase()}_bills_${periodLabel.toLowerCase().replace(/\s+/g, "_")}_${new Date().toISOString().split("T")[0]}.csv`);
   document.body.appendChild(link); link.click(); document.body.removeChild(link);
 };
