@@ -332,23 +332,10 @@ export const BunkDetails: React.FC = () => {
     // Calculate summary stats
     let totalPurchased = 0;
     let totalPaid = 0;
-    let totalPending = 0;
-
-    interface BulkGroup {
-      bulkAmountLabel: string;
-      time: string;
-      notes: string;
-      splits: { dateStr: string; amount: number }[];
-    }
-    const bulkGroups: { [key: string]: BulkGroup } = {};
 
     const tableRows = filteredRecords.map((r) => {
       totalPurchased += Number(r.fuelAmount || 0);
       totalPaid += Number(r.paidAmount || 0);
-
-      const fifoInfo = recordsWithFifoMap.get(r.id);
-      const rowBal = fifoInfo ? fifoInfo.fifoBalance : Math.max(0, Number(r.fuelAmount || 0) - Number(r.paidAmount || 0));
-      totalPending += rowBal;
 
       const dateStr = new Date(r.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
       
@@ -377,10 +364,7 @@ export const BunkDetails: React.FC = () => {
       }
       let paymentsStr = "";
       if (payments.length > 0) {
-        const listStr = payments.map(p => {
-          const label = p.remarks ? p.remarks : "Single Entry";
-          return `₹${p.amount.toLocaleString()} (${p.time}) - <em>${label}</em>`;
-        }).join("<br/>");
+        const listStr = payments.map(p => `₹${p.amount.toLocaleString()} (${p.time})`).join("<br/>");
         if (payments.length >= 2) {
           const sum = payments.reduce((s, p) => s + p.amount, 0);
           paymentsStr = `${listStr}<div style="border-top:1px dashed #cbd5e1;margin-top:4px;padding-top:2px;font-weight:700;font-size:11px;color:#16a34a;">Total: ₹${sum.toLocaleString()}</div>`;
@@ -391,80 +375,16 @@ export const BunkDetails: React.FC = () => {
         paymentsStr = Number(r.paidAmount || 0) > 0 ? `₹${Number(r.paidAmount || 0).toLocaleString()}` : "—";
       }
 
-      // Extract bulk payment splits for the audit log
-      payments.forEach((p) => {
-        if (p.remarks && p.remarks.includes("Bulk Payment (FIFO)")) {
-          const match = p.remarks.match(/\[split from ([\w₹,.]+)\]/);
-          const bulkAmt = match ? match[1] : "Unknown";
-          
-          let notes = "";
-          const notesIndex = p.remarks.indexOf("] - ");
-          if (notesIndex !== -1) {
-            notes = p.remarks.substring(notesIndex + 4);
-          } else if (p.remarks.indexOf("]") === -1) {
-            notes = p.remarks.replace("Bulk Payment (FIFO)", "").trim();
-          }
-
-          const groupKey = `${p.time}_${bulkAmt}_${notes}`;
-
-          if (!bulkGroups[groupKey]) {
-            bulkGroups[groupKey] = {
-              bulkAmountLabel: bulkAmt,
-              time: p.time,
-              notes: notes || "Lump-sum",
-              splits: []
-            };
-          }
-          bulkGroups[groupKey].splits.push({
-            dateStr,
-            amount: p.amount
-          });
-        }
-      });
-
-      const balanceStr = Number(r.balance || 0) > 0 
-        ? `<strong style="color: #ef4444;">₹${Number(r.balance).toLocaleString()}</strong>`
-        : `<span style="color: #10b981; font-weight: 700;">Fully Paid</span>`;
-
       return `
         <tr style="border-bottom:1px solid #e2e8f0; font-size:12px;">
           <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:top;font-weight:600;">${dateStr}</td>
           <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:top;line-height:1.5;">${purchasesStr}</td>
           <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:top;line-height:1.5;">${paymentsStr}</td>
-          <td style="padding:10px 12px;border-bottom:1px solid #e2e8f0;vertical-align:top;text-align:right;">${balanceStr}</td>
         </tr>
       `;
     }).join("");
 
-    let bulkPaymentsLogHtml = "";
-    const bulkGroupKeys = Object.keys(bulkGroups);
-    if (bulkGroupKeys.length > 0) {
-      const logRows = bulkGroupKeys.map((key) => {
-        const group = bulkGroups[key];
-        const splitsList = group.splits.map(s => {
-          return `<span style="display:inline-block;background:#f1f5f9;color:#334155;padding:4px 8px;border-radius:4px;font-size:10px;margin-right:6px;margin-bottom:6px;font-weight:600;">${s.dateStr}: ₹${s.amount.toLocaleString()}</span>`;
-        }).join("");
-
-        return `
-          <div style="padding:12px;border:1px dashed #cbd5e1;border-radius:6px;margin-bottom:12px;background:#fafafa;">
-            <div style="display:flex;justify-content:space-between;font-weight:800;color:#0f172a;font-size:11px;margin-bottom:8px;">
-              <span>Bulk Payment: ${group.bulkAmountLabel} (${group.time})</span>
-              <span style="color:#64748b;font-weight:600;font-size:10px;">Note: ${group.notes}</span>
-            </div>
-            <div style="font-size:10px;color:#64748b;margin-bottom:6px;font-weight:700;text-transform:uppercase;letter-spacing:0.5px;">Split Distribution:</div>
-            <div>${splitsList}</div>
-          </div>
-        `;
-      }).join("");
-
-      bulkPaymentsLogHtml = `
-        <div style="margin-top:28px;border-top:2px solid #cbd5e1;padding-top:16px;">
-          <h2 style="font-size:12px;font-weight:900;color:#0f172a;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:14px;margin-top:0;">Bulk Payments Audit Log</h2>
-          ${logRows}
-        </div>
-      `;
-    }
-
+    const totalPending = Math.max(0, totalPurchased - totalPaid);
     const fromDateFormatted = new Date(reportFromDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
     const toDateFormatted = new Date(reportToDate).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -499,18 +419,15 @@ export const BunkDetails: React.FC = () => {
         <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px;">
           <thead>
             <tr style="background:#f8fafc;border-bottom:2px solid #cbd5e1;">
-              <th style="padding:12px 10px;text-align:left;font-size:11px;color:#475569;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;width:15%;">Date</th>
-              <th style="padding:12px 10px;text-align:left;font-size:11px;color:#475569;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;width:35%;">Diesel Purchases</th>
-              <th style="padding:12px 10px;text-align:left;font-size:11px;color:#475569;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;width:35%;">Payments History</th>
-              <th style="padding:12px 10px;text-align:right;font-size:11px;color:#475569;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;width:15%;">Balance Due</th>
+              <th style="padding:12px 10px;text-align:left;font-size:11px;color:#475569;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;width:20%;">Date</th>
+              <th style="padding:12px 10px;text-align:left;font-size:11px;color:#475569;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;width:40%;">Diesel Purchases</th>
+              <th style="padding:12px 10px;text-align:left;font-size:11px;color:#475569;font-weight:800;text-transform:uppercase;letter-spacing:0.5px;width:40%;">Payments History</th>
             </tr>
           </thead>
           <tbody>
             ${tableRows}
           </tbody>
         </table>
-
-        ${bulkPaymentsLogHtml}
       </div>
     `;
 
@@ -1137,7 +1054,7 @@ export const BunkDetails: React.FC = () => {
                                       ) : (
                                         payments.map(p => (
                                           <Box key={p.id} display="flex" justifyContent="space-between" sx={{ py: 0.5, borderBottom: "1px dashed rgba(255,255,255,0.06)" }}>
-                                            <Typography variant="caption">{p.time} {p.remarks ? `(${p.remarks})` : ""}</Typography>
+                                            <Typography variant="caption">{p.time} {p.remarks && !p.remarks.includes("Bulk Payment") ? `(${p.remarks})` : ""}</Typography>
                                             <Typography variant="caption" sx={{ fontWeight: 700, color: "#10b981" }}>₹{p.amount.toLocaleString()}</Typography>
                                           </Box>
                                         ))
@@ -1255,7 +1172,7 @@ export const BunkDetails: React.FC = () => {
                           ) : (
                             payments.map(p => (
                               <Box key={p.id} display="flex" justifyContent="space-between" sx={{ py: 0.3 }}>
-                                <Typography variant="caption">{p.time} {p.remarks ? `(${p.remarks})` : ""}</Typography>
+                                <Typography variant="caption">{p.time} {p.remarks && !p.remarks.includes("Bulk Payment") ? `(${p.remarks})` : ""}</Typography>
                                 <Typography variant="caption" sx={{ fontWeight: 700, color: "#10b981" }}>₹{p.amount.toLocaleString()}</Typography>
                               </Box>
                             ))
