@@ -635,7 +635,7 @@ export const BunkDetails: React.FC = () => {
               <Grid item xs={12} sm={3}>
                 <Box sx={{ p: 1.8, borderRadius: 2.5, bgcolor: "rgba(13, 148, 136, 0.08)", border: "1px solid rgba(13, 148, 136, 0.15)", minHeight: "96px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, fontSize: "11px" }}>
-                    Total Diesel Purchased
+                    Total Diesel Purchased Today
                   </Typography>
                   <Typography variant="h5" sx={{ fontWeight: 900, color: "text.primary", mt: 0.5, fontSize: { xs: "1.2rem", sm: "1.35rem" } }}>
                     ₹{totalPurchases.toLocaleString()}

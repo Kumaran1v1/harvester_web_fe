@@ -56,7 +56,7 @@ export const Bills: React.FC = () => {
   const [filterState, setFilterState] = useState<MonthFilterState>({
     month: new Date().getMonth() + 1,
     year: new Date().getFullYear(),
-    isOverall: false,
+    isOverall: true,
   });
 
   const [page, setPage] = useState(0);
