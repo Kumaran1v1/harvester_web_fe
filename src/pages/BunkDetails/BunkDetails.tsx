@@ -59,10 +59,7 @@ export const BunkDetails: React.FC = () => {
   const [newPaymentAmt, setNewPaymentAmt] = useState("");
   const [newPaymentTime, setNewPaymentTime] = useState(getCurrentTimeString());
 
-  // Bulk payment modal states
-  const [isBulkPaymentOpen, setIsBulkPaymentOpen] = useState(false);
-  const [bulkPaymentAmt, setBulkPaymentAmt] = useState("");
-  const [bulkPaymentRemarks, setBulkPaymentRemarks] = useState("");
+
 
   // PDF Report modal states
   const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -119,15 +116,35 @@ export const BunkDetails: React.FC = () => {
     return [];
   }, [activeRecord]);
 
+  // Live Totals across all history
+  const totalPurchasesOverall = useMemo(() => records.reduce((sum, r) => sum + Number(r.fuelAmount || 0), 0), [records]);
+  const totalPaymentsOverall = useMemo(() => records.reduce((sum, r) => sum + Number(r.paidAmount || 0), 0), [records]);
+  const overallPendingBalance = useMemo(() => Math.max(0, totalPurchasesOverall - totalPaymentsOverall), [totalPurchasesOverall, totalPaymentsOverall]);
+
   // Live Totals for Selected Date
   const totalPurchases = useMemo(() => activePurchases.reduce((sum, p) => sum + p.amount, 0), [activePurchases]);
   const totalPayments = useMemo(() => activePayments.reduce((sum, p) => sum + p.amount, 0), [activePayments]);
   const pendingBalance = Math.max(0, totalPurchases - totalPayments);
   const isFullyPaid = pendingBalance === 0;
 
-  const overallPendingBalance = useMemo(() => {
-    return records.reduce((sum, r) => sum + Number(r.balance || 0), 0);
-  }, [records]);
+  // Chronological FIFO Status & Balance Resolution for every record
+  const recordsWithFifoMap = useMemo(() => {
+    const sortedAsc = [...records].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+    let remainingPaymentPool = totalPaymentsOverall;
+
+    const resultMap = new Map<number, { fifoCovered: number; fifoBalance: number; fifoStatus: "PAID" | "PENDING" }>();
+
+    for (const r of sortedAsc) {
+      const fuel = Number(r.fuelAmount || 0);
+      const covered = Math.min(fuel, remainingPaymentPool);
+      remainingPaymentPool -= covered;
+      const fifoBalance = Math.max(0, fuel - covered);
+      const fifoStatus = fifoBalance === 0 ? "PAID" : "PENDING";
+      resultMap.set(r.id, { fifoCovered: covered, fifoBalance, fifoStatus });
+    }
+
+    return resultMap;
+  }, [records, totalPaymentsOverall]);
 
   // Active view: "daily" | "history"
   const [activeView, setActiveView] = useState<"daily" | "history">("daily");
@@ -145,12 +162,25 @@ export const BunkDetails: React.FC = () => {
   }, [records, historySearch]);
 
   // Overall stats across all history
-  const historyTotals = useMemo(() => ({
-    totalPurchased: records.reduce((s, r) => s + Number(r.fuelAmount || 0), 0),
-    totalPaid: records.reduce((s, r) => s + Number(r.paidAmount || 0), 0),
-    pendingCount: records.filter(r => Number(r.balance || 0) > 0).length,
-    paidCount: records.filter(r => Number(r.balance || 0) === 0 && Number(r.fuelAmount || 0) > 0).length,
-  }), [records]);
+  const historyTotals = useMemo(() => {
+    let pendingCount = 0;
+    let paidCount = 0;
+    records.forEach(r => {
+      const fifo = recordsWithFifoMap.get(r.id);
+      if (fifo && fifo.fifoBalance > 0) {
+        pendingCount++;
+      } else {
+        paidCount++;
+      }
+    });
+
+    return {
+      totalPurchased: totalPurchasesOverall,
+      totalPaid: totalPaymentsOverall,
+      pendingCount,
+      paidCount,
+    };
+  }, [records, totalPurchasesOverall, totalPaymentsOverall, recordsWithFifoMap]);
 
   // Save / Sync Record Helper
   const syncRecord = async (updatedPurchases: PurchaseItem[], updatedPayments: PaymentItem[]) => {
@@ -257,6 +287,17 @@ export const BunkDetails: React.FC = () => {
       dispatch(showToast({ message: "Please enter a valid payment amount", severity: "error" }));
       return;
     }
+    if (overallPendingBalance <= 0) {
+      dispatch(showToast({ message: "No pending debt to pay! Overall pending balance is ₹0.", severity: "error" }));
+      return;
+    }
+    if (val > overallPendingBalance) {
+      dispatch(showToast({
+        message: `Payment amount (₹${val.toLocaleString()}) cannot exceed overall pending balance of ₹${overallPendingBalance.toLocaleString()}`,
+        severity: "error"
+      }));
+      return;
+    }
     const newItem: PaymentItem = {
       id: Date.now().toString(),
       amount: val,
@@ -270,8 +311,8 @@ export const BunkDetails: React.FC = () => {
 
   // Fill Full Balance Shortcut
   const handlePayFullBalance = () => {
-    if (pendingBalance <= 0) return;
-    setNewPaymentAmt(pendingBalance.toString());
+    if (overallPendingBalance <= 0) return;
+    setNewPaymentAmt(overallPendingBalance.toString());
   };
 
   const handleDownloadReport = () => {
@@ -304,7 +345,10 @@ export const BunkDetails: React.FC = () => {
     const tableRows = filteredRecords.map((r) => {
       totalPurchased += Number(r.fuelAmount || 0);
       totalPaid += Number(r.paidAmount || 0);
-      totalPending += Number(r.balance || 0);
+
+      const fifoInfo = recordsWithFifoMap.get(r.id);
+      const rowBal = fifoInfo ? fifoInfo.fifoBalance : Math.max(0, Number(r.fuelAmount || 0) - Number(r.paidAmount || 0));
+      totalPending += rowBal;
 
       const dateStr = new Date(r.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
       
@@ -490,35 +534,7 @@ export const BunkDetails: React.FC = () => {
       });
   };
 
-  const handleBulkPaymentSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const amountVal = parseFloat(bulkPaymentAmt);
-    if (isNaN(amountVal) || amountVal <= 0) {
-      dispatch(showToast({ message: "Please enter a valid payment amount", severity: "error" }));
-      return;
-    }
 
-    setSaving(true);
-    try {
-      const res = await fetch("/api/bunk-details/bulk-payment", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ amount: amountVal, remarks: bulkPaymentRemarks })
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Failed to process bulk payment");
-
-      dispatch(showToast({ message: data.message || "Bulk payment processed successfully", severity: "success" }));
-      setIsBulkPaymentOpen(false);
-      setBulkPaymentAmt("");
-      setBulkPaymentRemarks("");
-      fetchRecords(); // re-fetch all records to update UI
-    } catch (err: any) {
-      dispatch(showToast({ message: err.message || "Error processing bulk payment", severity: "error" }));
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // Date Shift Handlers
   const handleDateChange = (newDateStr: string) => {
@@ -686,7 +702,7 @@ export const BunkDetails: React.FC = () => {
                       ₹{overallPendingBalance.toLocaleString()}
                     </Typography>
                   </Box>
-                  {overallPendingBalance > 0 && (
+                  {/* {overallPendingBalance > 0 && (
                     <Button
                       variant="contained"
                       color="error"
@@ -696,7 +712,7 @@ export const BunkDetails: React.FC = () => {
                     >
                       Clear Debt (FIFO)
                     </Button>
-                  )}
+                  )} */}
                 </Box>
               </Grid>
               <Grid item xs={12} sm={3}>
@@ -709,7 +725,7 @@ export const BunkDetails: React.FC = () => {
                   </Typography>
                 </Box>
               </Grid>
-              <Grid item xs={12} sm={3}>
+              {/* <Grid item xs={12} sm={3}>
                 <Box sx={{ p: 1.8, borderRadius: 2.5, bgcolor: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.15)", minHeight: "96px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, fontSize: "11px" }}>
                     Total Paid to Bunk
@@ -718,8 +734,8 @@ export const BunkDetails: React.FC = () => {
                     ₹{totalPayments.toLocaleString()}
                   </Typography>
                 </Box>
-              </Grid>
-              <Grid item xs={12} sm={3}>
+              </Grid> */}
+              {/* <Grid item xs={12} sm={3}>
                 <Box sx={{ p: 1.8, borderRadius: 2.5, bgcolor: "rgba(245, 158, 11, 0.08)", border: "1px solid rgba(245, 158, 11, 0.15)", minHeight: "96px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
                   <Typography variant="caption" color="text.secondary" display="block" sx={{ fontWeight: 700, textTransform: "uppercase", letterSpacing: 0.5, fontSize: "11px" }}>
                     Pending Balance Due
@@ -728,7 +744,7 @@ export const BunkDetails: React.FC = () => {
                     ₹{pendingBalance.toLocaleString()}
                   </Typography>
                 </Box>
-              </Grid>
+              </Grid> */}
             </Grid>
           </Box>
 
@@ -826,9 +842,9 @@ export const BunkDetails: React.FC = () => {
                   <Typography variant="h6" sx={{ fontWeight: 800, color: "#10b981", display: "flex", alignItems: "center", gap: 1 }}>
                     <CheckCircle2 size={20} /> 2. Payments Paid to Bunk
                   </Typography>
-                  {pendingBalance > 0 && (
+                  {overallPendingBalance > 0 && (
                     <Button size="small" variant="contained" color="success" onClick={handlePayFullBalance} sx={{ fontSize: "11px", fontWeight: 800, textTransform: "none", py: 0.3 }}>
-                      Pay Full Balance (₹{pendingBalance.toLocaleString()})
+                      Pay Overall Pending Debt (₹{overallPendingBalance.toLocaleString()})
                     </Button>
                   )}
                 </Box>
@@ -883,7 +899,13 @@ export const BunkDetails: React.FC = () => {
                         placeholder="e.g. 5000"
                         value={newPaymentAmt}
                         onChange={(e) => setNewPaymentAmt(e.target.value)}
-                        inputProps={{ step: "any", min: "0" }}
+                        error={Boolean(newPaymentAmt && (parseFloat(newPaymentAmt) > overallPendingBalance || parseFloat(newPaymentAmt) <= 0))}
+                        helperText={
+                          newPaymentAmt && parseFloat(newPaymentAmt) > overallPendingBalance
+                            ? `Cannot exceed overall debt ₹${overallPendingBalance.toLocaleString()}`
+                            : `Max allowed: ₹${overallPendingBalance.toLocaleString()}`
+                        }
+                        inputProps={{ step: "any", min: "0", max: overallPendingBalance }}
                       />
                     </Grid>
                     <Grid item xs={6}>
@@ -904,7 +926,7 @@ export const BunkDetails: React.FC = () => {
                         color="success"
                         startIcon={<Plus size={16} />}
                         onClick={handleAddPayment}
-                        disabled={saving}
+                        disabled={saving || overallPendingBalance <= 0 || Boolean(newPaymentAmt && parseFloat(newPaymentAmt) > overallPendingBalance)}
                         sx={{ fontWeight: 800, py: 1 }}
                       >
                         {saving ? "Saving..." : "Payment Paid"}
@@ -921,6 +943,16 @@ export const BunkDetails: React.FC = () => {
         <Box display="flex" flexDirection="column" gap={3}>
           {/* Summary Stat Cards */}
           <Grid container spacing={{ xs: 1.5, sm: 2 }}>
+             <Grid item xs={6} sm={3}>
+              <Paper sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 3, bgcolor: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: { xs: "9px", sm: "11px" } }}>
+                  Pending Debt
+                </Typography>
+                <Typography variant="h6" sx={{ fontWeight: 900, color: "#ef4444", mt: 0.5, fontSize: { xs: "1rem", sm: "1.25rem" } }}>
+                  ₹{overallPendingBalance.toLocaleString()}
+                </Typography>
+              </Paper>
+            </Grid>
             <Grid item xs={6} sm={3}>
               <Paper sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 3, bgcolor: "rgba(13, 148, 136, 0.08)", border: "1px solid rgba(13, 148, 136, 0.2)" }}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: { xs: "9px", sm: "11px" } }}>
@@ -938,16 +970,6 @@ export const BunkDetails: React.FC = () => {
                 </Typography>
                 <Typography variant="h6" sx={{ fontWeight: 900, color: "#10b981", mt: 0.5, fontSize: { xs: "1rem", sm: "1.25rem" } }}>
                   ₹{historyTotals.totalPaid.toLocaleString()}
-                </Typography>
-              </Paper>
-            </Grid>
-            <Grid item xs={6} sm={3}>
-              <Paper sx={{ p: { xs: 1.5, sm: 2 }, borderRadius: 3, bgcolor: "rgba(239, 68, 68, 0.08)", border: "1px solid rgba(239, 68, 68, 0.2)" }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: "uppercase", fontSize: { xs: "9px", sm: "11px" } }}>
-                  Pending Debt
-                </Typography>
-                <Typography variant="h6" sx={{ fontWeight: 900, color: "#ef4444", mt: 0.5, fontSize: { xs: "1rem", sm: "1.25rem" } }}>
-                  ₹{overallPendingBalance.toLocaleString()}
                 </Typography>
               </Paper>
             </Grid>
@@ -992,7 +1014,6 @@ export const BunkDetails: React.FC = () => {
                     <TableCell sx={{ fontWeight: 700 }}>Date</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Refuels (Purchased)</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Payments Paid</TableCell>
-                    <TableCell sx={{ fontWeight: 700 }}>Balance Due</TableCell>
                     <TableCell sx={{ fontWeight: 700 }}>Status</TableCell>
                     <TableCell sx={{ fontWeight: 700 }} align="right">Action</TableCell>
                   </TableRow>
@@ -1000,7 +1021,7 @@ export const BunkDetails: React.FC = () => {
                 <TableBody>
                   {sortedHistoryRecords.length === 0 ? (
                     <TableRow>
-                      <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                      <TableCell colSpan={7} align="center" sx={{ py: 6 }}>
                         <Typography color="text.secondary">
                           {historySearch ? "No matching history records found." : "No bunk records found."}
                         </Typography>
@@ -1012,7 +1033,9 @@ export const BunkDetails: React.FC = () => {
                       const dateObj = new Date(r.date);
                       const formattedDate = dateObj.toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
                       const isExpanded = expandedRow === r.id;
-                      const bal = Number(r.balance || 0);
+                      const fifoInfo = recordsWithFifoMap.get(r.id) || { fifoBalance: Number(r.balance || 0), fifoStatus: r.paymentStatus };
+                      const bal = fifoInfo.fifoBalance;
+                      const isPaid = fifoInfo.fifoStatus === "PAID";
 
                       let purchases: PurchaseItem[] = [];
                       if (r.purchasesJson) {
@@ -1058,14 +1081,9 @@ export const BunkDetails: React.FC = () => {
                               )}
                             </TableCell>
                             <TableCell>
-                              <Typography variant="body2" sx={{ fontWeight: 900, color: bal > 0 ? "error.main" : "success.main" }}>
-                                {bal > 0 ? `₹${bal.toLocaleString()}` : "Fully Paid"}
-                              </Typography>
-                            </TableCell>
-                            <TableCell>
                               <Chip
-                                label={bal === 0 ? "PAID" : "PENDING"}
-                                color={bal === 0 ? "success" : "warning"}
+                                label={isPaid ? "PAID" : "PENDING"}
+                                color={isPaid ? "success" : "warning"}
                                 size="small"
                                 sx={{ fontWeight: 900, fontSize: "10px" }}
                               />
@@ -1088,7 +1106,7 @@ export const BunkDetails: React.FC = () => {
 
                           {/* Collapsible Expanded Details */}
                           <TableRow>
-                            <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={8}>
+                            <TableCell style={{ paddingBottom: 0, paddingTop: 0 }} colSpan={7}>
                               <Collapse in={isExpanded} timeout="auto" unmountOnExit>
                                 <Box sx={{ margin: 2, p: 2, borderRadius: 2.5, bgcolor: "rgba(255,255,255,0.02)", border: "1px solid rgba(255,255,255,0.06)" }}>
                                   <Typography variant="subtitle2" gutterBottom component="div" sx={{ fontWeight: 800, color: "#2dd4bf" }}>
@@ -1150,7 +1168,9 @@ export const BunkDetails: React.FC = () => {
                   const dateObj = new Date(r.date);
                   const formattedDate = dateObj.toLocaleDateString("en-IN", { weekday: "short", day: "2-digit", month: "short", year: "numeric" });
                   const isExpanded = expandedRow === r.id;
-                  const bal = Number(r.balance || 0);
+                  const fifoInfo = recordsWithFifoMap.get(r.id) || { fifoBalance: Number(r.balance || 0), fifoStatus: r.paymentStatus };
+                  const bal = fifoInfo.fifoBalance;
+                  const isPaid = fifoInfo.fifoStatus === "PAID";
 
                   let purchases: PurchaseItem[] = [];
                   if (r.purchasesJson) { try { purchases = JSON.parse(r.purchasesJson); } catch (e) {} }
@@ -1164,7 +1184,7 @@ export const BunkDetails: React.FC = () => {
                         borderRadius: 3,
                         p: 1.8,
                         border: "1px solid",
-                        borderColor: bal > 0 ? "rgba(239, 68, 68, 0.25)" : "rgba(16, 185, 129, 0.25)",
+                        borderColor: !isPaid ? "rgba(239, 68, 68, 0.25)" : "rgba(16, 185, 129, 0.25)",
                         bgcolor: "background.paper",
                         boxShadow: "0 4px 20px rgba(0,0,0,0.2)"
                       }}
@@ -1180,8 +1200,8 @@ export const BunkDetails: React.FC = () => {
                           </Typography>
                         </Box>
                         <Chip
-                          label={bal === 0 ? "PAID" : "PENDING"}
-                          color={bal === 0 ? "success" : "warning"}
+                          label={isPaid ? "PAID" : "PENDING"}
+                          color={isPaid ? "success" : "warning"}
                           size="small"
                           sx={{ fontWeight: 900, fontSize: "9px" }}
                         />
@@ -1191,7 +1211,7 @@ export const BunkDetails: React.FC = () => {
 
                       {/* Grid Stats inside Mobile Card */}
                       <Grid container spacing={1} sx={{ my: 0.5 }}>
-                        <Grid item xs={4}>
+                        <Grid item xs={6}>
                           <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: "9px", fontWeight: 700 }}>
                             Refuel
                           </Typography>
@@ -1200,21 +1220,12 @@ export const BunkDetails: React.FC = () => {
                           </Typography>
                         </Grid>
 
-                        <Grid item xs={4}>
+                        <Grid item xs={6}>
                           <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: "9px", fontWeight: 700 }}>
                             Paid
                           </Typography>
                           <Typography variant="body2" sx={{ fontWeight: 800, color: "#10b981", fontSize: "0.82rem" }}>
                             ₹{Number(r.paidAmount || 0).toLocaleString()}
-                          </Typography>
-                        </Grid>
-
-                        <Grid item xs={4}>
-                          <Typography variant="caption" color="text.secondary" display="block" sx={{ fontSize: "9px", fontWeight: 700 }}>
-                            Balance
-                          </Typography>
-                          <Typography variant="body2" sx={{ fontWeight: 900, color: bal > 0 ? "#ef4444" : "#10b981", fontSize: "0.82rem" }}>
-                            {bal > 0 ? `₹${bal.toLocaleString()}` : "Fully Paid"}
                           </Typography>
                         </Grid>
                       </Grid>
@@ -1348,54 +1359,6 @@ export const BunkDetails: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* FIFO Bulk Payment Dialog Modal */}
-      <Dialog open={isBulkPaymentOpen} onClose={() => setIsBulkPaymentOpen(false)} fullWidth maxWidth="xs">
-        <form onSubmit={handleBulkPaymentSubmit}>
-          <DialogTitle sx={{ fontWeight: 800 }}>
-            Overall Bunk Payment (FIFO)
-          </DialogTitle>
-          <DialogContent dividers sx={{ p: 3 }}>
-            <Typography variant="body2" color="text.secondary" sx={{ mb: 2, fontWeight: 600 }}>
-              Enter a lump-sum payment amount. This will automatically distribute to your pending daily bunk sheets starting from the oldest date (FIFO order).
-            </Typography>
-            <Grid container spacing={2.5}>
-              <Grid item xs={12}>
-                <TextField
-                  label="Payment Amount (₹)"
-                  type="number"
-                  fullWidth
-                  required
-                  value={bulkPaymentAmt}
-                  onChange={(e) => setBulkPaymentAmt(e.target.value)}
-                  inputProps={{ step: "any", min: "0.01" }}
-                  placeholder="Enter lump-sum payment amount..."
-                  autoFocus
-                />
-              </Grid>
-              <Grid item xs={12}>
-                <TextField
-                  label="Remarks / Payment Notes"
-                  name="remarks"
-                  fullWidth
-                  multiline
-                  rows={2}
-                  value={bulkPaymentRemarks}
-                  onChange={(e) => setBulkPaymentRemarks(e.target.value)}
-                  placeholder="e.g. Cleared via Bank Transfer"
-                />
-              </Grid>
-            </Grid>
-          </DialogContent>
-          <DialogActions sx={{ p: 2.5 }}>
-            <Button onClick={() => setIsBulkPaymentOpen(false)} color="inherit">
-              Cancel
-            </Button>
-            <Button type="submit" variant="contained" color="error" disabled={saving}>
-              {saving ? "Processing..." : "Process Payment"}
-            </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
 
       {/* Delete Entry Confirmation Dialog Modal */}
       <Dialog open={deleteModal.open} onClose={() => setDeleteModal(prev => ({ ...prev, open: false }))} fullWidth maxWidth="xs">
