@@ -15,6 +15,7 @@ import { useDispatch } from "react-redux";
 import { showToast } from "../../redux/toast/toastSlice";
 import html2pdf from "html2pdf.js";
 import { YouTubeTableSkeleton } from "../../components/YouTubeSkeletonLoader";
+import HarvesterModalLoader from "../../components/HarvesterModalLoader";
 
 interface Operator {
   id: number;
@@ -970,7 +971,8 @@ export const Operators: React.FC = () => {
       {/* ── MODALS & POPUPS ── */}
 
       {/* Grid Cell Attendance Dialog Modal */}
-      <Dialog open={isCellAttendanceOpen} onClose={() => setIsCellAttendanceOpen(false)} fullWidth maxWidth="xs">
+      <Dialog open={isCellAttendanceOpen} onClose={() => setIsCellAttendanceOpen(false)} fullWidth maxWidth="xs" sx={{ position: "relative" }}>
+        <HarvesterModalLoader loading={saving} message="Saving attendance entry..." />
         {cellData && (
           <form onSubmit={handleCellSubmit}>
             <DialogTitle sx={{ fontWeight: 800 }}>
@@ -1055,7 +1057,8 @@ export const Operators: React.FC = () => {
       </Dialog>
 
       {/* Add Operator Profile Dialog Modal */}
-      <Dialog open={isAddOperatorOpen} onClose={handleCloseAddOperator} fullWidth maxWidth="xs">
+      <Dialog open={isAddOperatorOpen} onClose={handleCloseAddOperator} fullWidth maxWidth="xs" sx={{ position: "relative" }}>
+        <HarvesterModalLoader loading={saving} message="Adding operator..." />
         <DialogTitle sx={{ fontWeight: 800 }}>Add Operator</DialogTitle>
         <form onSubmit={handleOperatorSubmit}>
           <DialogContent dividers sx={{ p: 3 }}>
@@ -1087,7 +1090,8 @@ export const Operators: React.FC = () => {
       </Dialog>
 
       {/* Edit Operator Dialog Modal */}
-      <Dialog open={isEditOperatorOpen} onClose={() => setIsEditOperatorOpen(false)} fullWidth maxWidth="xs">
+      <Dialog open={isEditOperatorOpen} onClose={() => setIsEditOperatorOpen(false)} fullWidth maxWidth="xs" sx={{ position: "relative" }}>
+        <HarvesterModalLoader loading={saving} message="Saving changes..." />
         <DialogTitle sx={{ fontWeight: 800 }}>Edit Operator</DialogTitle>
         <form onSubmit={handleEditOperatorSubmit}>
           <DialogContent dividers sx={{ p: 3 }}>
@@ -1128,7 +1132,8 @@ export const Operators: React.FC = () => {
       </Dialog>
 
       {/* Record Salary Payment Dialog Modal */}
-      <Dialog open={isPaymentOpen} onClose={handleClosePayment} fullWidth maxWidth="xs">
+      <Dialog open={isPaymentOpen} onClose={handleClosePayment} fullWidth maxWidth="xs" sx={{ position: "relative" }}>
+        <HarvesterModalLoader loading={saving} message="Recording salary payment..." />
         <DialogTitle sx={{ fontWeight: 800 }}>Record Payment - {selectedOperator?.operatorName}</DialogTitle>
         <form onSubmit={handlePaymentSubmit}>
           <DialogContent dividers sx={{ p: 3 }}>

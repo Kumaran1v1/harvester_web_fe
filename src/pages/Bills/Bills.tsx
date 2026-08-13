@@ -14,6 +14,7 @@ import { exportBillsPDF, exportBillsExcel } from "../../utils/billsExport";
 import { useDispatch } from "react-redux";
 import { showToast } from "../../redux/toast/toastSlice";
 import { YouTubeTableSkeleton, YouTubeSpinner } from "../../components/YouTubeSkeletonLoader";
+import HarvesterModalLoader from "../../components/HarvesterModalLoader";
 
 interface Bill {
   id: number;
@@ -780,7 +781,8 @@ export const Bills: React.FC = () => {
       )}
 
       {/* Create Dialog Modal */}
-      <Dialog open={isCreateOpen} onClose={handleCloseCreate} fullWidth maxWidth="sm">
+      <Dialog open={isCreateOpen} onClose={handleCloseCreate} fullWidth maxWidth="sm" sx={{ position: "relative" }}>
+        <HarvesterModalLoader loading={saving} message="Creating bill entry..." />
         <DialogTitle sx={{ fontWeight: 800 }}>Create {activeTab === "CLASS" ? "Class" : "Kartar"} Bill</DialogTitle>
         <form onSubmit={handleCreateSubmit}>
           <DialogContent dividers sx={{ p: 3 }}>
@@ -842,7 +844,8 @@ export const Bills: React.FC = () => {
       </Dialog>
 
       {/* Edit Dialog Modal */}
-      <Dialog open={isEditOpen} onClose={handleCloseEdit} fullWidth maxWidth="sm">
+      <Dialog open={isEditOpen} onClose={handleCloseEdit} fullWidth maxWidth="sm" sx={{ position: "relative" }}>
+        <HarvesterModalLoader loading={saving} message="Saving bill changes..." />
         <DialogTitle sx={{ fontWeight: 800 }}>Edit {activeTab === "CLASS" ? "Class" : "Kartar"} Bill</DialogTitle>
         <form onSubmit={handleEditSubmit}>
           <DialogContent dividers sx={{ p: 3 }}>
@@ -904,7 +907,8 @@ export const Bills: React.FC = () => {
       </Dialog>
 
       {/* Confirmation Custom Dialog Modal */}
-      <Dialog open={isConfirmOpen} onClose={handleCloseConfirm} maxWidth="xs" fullWidth>
+      <Dialog open={isConfirmOpen} onClose={handleCloseConfirm} maxWidth="xs" fullWidth sx={{ position: "relative" }}>
+        <HarvesterModalLoader loading={saving} message="Processing request..." />
         <DialogTitle sx={{ fontWeight: 800, pb: 1 }}>{confirmTitle}</DialogTitle>
         <DialogContent dividers sx={{ py: 3.5 }}>
           <Typography variant="body1" sx={{ color: "text.primary" }}>
@@ -920,7 +924,8 @@ export const Bills: React.FC = () => {
       </Dialog>
 
       {/* Record Payment Dialog Modal */}
-      <Dialog open={isPaymentOpen} onClose={handleClosePayment} fullWidth maxWidth="xs">
+      <Dialog open={isPaymentOpen} onClose={handleClosePayment} fullWidth maxWidth="xs" sx={{ position: "relative" }}>
+        <HarvesterModalLoader loading={saving} message="Recording payment..." />
         <DialogTitle sx={{ fontWeight: 800 }}>Record Payment</DialogTitle>
         <form onSubmit={handlePaymentSubmit}>
           <DialogContent dividers sx={{ p: 3 }}>

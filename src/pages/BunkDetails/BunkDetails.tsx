@@ -14,6 +14,7 @@ import html2pdf from "html2pdf.js";
 import { useDispatch } from "react-redux";
 import { showToast } from "../../redux/toast/toastSlice";
 import { YouTubeTableSkeleton } from "../../components/YouTubeSkeletonLoader";
+import HarvesterModalLoader from "../../components/HarvesterModalLoader";
 
 interface PurchaseItem {
   id: string;
@@ -1277,7 +1278,8 @@ export const BunkDetails: React.FC = () => {
 
 
       {/* Delete Entry Confirmation Dialog Modal */}
-      <Dialog open={deleteModal.open} onClose={() => setDeleteModal(prev => ({ ...prev, open: false }))} fullWidth maxWidth="xs">
+      <Dialog open={deleteModal.open} onClose={() => setDeleteModal(prev => ({ ...prev, open: false }))} fullWidth maxWidth="xs" sx={{ position: "relative" }}>
+        <HarvesterModalLoader loading={saving} message="Deleting entry..." />
         <DialogTitle sx={{ fontWeight: 800, color: "error.main" }}>
           Delete {deleteModal.type === "purchase" ? "Diesel Refuel" : "Bunk Payment"} Entry
         </DialogTitle>

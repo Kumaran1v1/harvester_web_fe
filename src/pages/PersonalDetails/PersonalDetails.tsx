@@ -13,6 +13,7 @@ import {
 import { useDispatch } from "react-redux";
 import { showToast } from "../../redux/toast/toastSlice";
 import { YouTubeProfileSkeleton, YouTubeSpinner } from "../../components/YouTubeSkeletonLoader";
+import HarvesterModalLoader from "../../components/HarvesterModalLoader";
 
 interface OwnerDocument {
   id: number;
@@ -642,7 +643,8 @@ export const PersonalDetails: React.FC = () => {
       </Box>
 
       {/* In-Depth Edit Profile Dialog Modal */}
-      <Dialog open={isEditOpen} onClose={handleCloseEdit} fullWidth maxWidth="md">
+      <Dialog open={isEditOpen} onClose={handleCloseEdit} fullWidth maxWidth="md" sx={{ position: "relative" }}>
+        <HarvesterModalLoader loading={saving} message="Updating profile & business portfolio..." />
         <DialogTitle sx={{ fontWeight: 800 }}>Edit Owner & Company Portfolio</DialogTitle>
         <form onSubmit={handleProfileSubmit}>
           <DialogContent dividers sx={{ p: 3 }}>
@@ -751,7 +753,8 @@ export const PersonalDetails: React.FC = () => {
       </Dialog>
 
       {/* Upload Document Dialog Modal */}
-      <Dialog open={isUploadOpen} onClose={handleCloseUpload} fullWidth maxWidth="xs">
+      <Dialog open={isUploadOpen} onClose={handleCloseUpload} fullWidth maxWidth="xs" sx={{ position: "relative" }}>
+        <HarvesterModalLoader loading={saving} message="Uploading document to drive..." />
         <DialogTitle sx={{ fontWeight: 800 }}>Upload Document to Drive</DialogTitle>
         <form onSubmit={handleUploadSubmit}>
           <DialogContent dividers sx={{ p: 3 }}>
@@ -836,7 +839,8 @@ export const PersonalDetails: React.FC = () => {
       </Dialog>
 
       {/* Delete Confirmation Modal */}
-      <Dialog open={!!deleteDocId} onClose={() => setDeleteDocId(null)} fullWidth maxWidth="xs">
+      <Dialog open={!!deleteDocId} onClose={() => setDeleteDocId(null)} fullWidth maxWidth="xs" sx={{ position: "relative" }}>
+        <HarvesterModalLoader loading={saving} message="Deleting document from drive..." />
         <DialogTitle sx={{ fontWeight: 800, color: "error.main" }}>Delete Document</DialogTitle>
         <DialogContent dividers sx={{ p: 3 }}>
           <Typography variant="body1">
