@@ -15,13 +15,18 @@ const API_BASE_URL = (
   "http://localhost:5000"
 ).replace(/\/$/, "");
 
-// Global fetch interceptor: resolve /api/ against backend URL and append JWT
+// Global fetch interceptor: resolve /api/ against backend URL, append JWT & handle 401 Session Expiration
 const originalFetch = window.fetch;
 window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
   const token = localStorage.getItem("token");
-  const isApi = typeof input === "string" && input.startsWith("/api/");
+  const urlStr = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  const isApi = urlStr.startsWith("/api/") || urlStr.includes("/api/");
+
+  let targetInput = input;
   if (isApi) {
-    input = `${API_BASE_URL}${input}`;
+    if (typeof input === "string" && input.startsWith("/api/")) {
+      targetInput = `${API_BASE_URL}${input}`;
+    }
     if (token) {
       init = init || {};
       init.headers = {
@@ -30,7 +35,20 @@ window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
       };
     }
   }
-  return originalFetch(input, init);
+
+  const response = await originalFetch(targetInput, init);
+
+  // If response is 401 Unauthorized (and not the login attempt itself), session has expired
+  if (response.status === 401 && !urlStr.includes("/api/auth/login")) {
+    const existingToken = localStorage.getItem("token");
+    if (existingToken) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.dispatchEvent(new CustomEvent("auth-session-expired"));
+    }
+  }
+
+  return response;
 };
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
