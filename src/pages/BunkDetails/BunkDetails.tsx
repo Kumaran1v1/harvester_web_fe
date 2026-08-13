@@ -4,7 +4,7 @@ import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import dayjs from "dayjs";
 import {
-  Box, Card, Typography, Button, TextField, Paper, CircularProgress,
+  Box, Card, Typography, Button, TextField, Paper,
   IconButton, Tooltip, Grid, Chip, Divider, Dialog, DialogTitle,
   DialogContent, DialogActions, Tabs, Tab, Table, TableBody, TableCell,
   TableContainer, TableHead, TableRow, Collapse
@@ -13,6 +13,7 @@ import { Fuel, Plus, Trash2, CheckCircle2, Clock, CalendarDays, ChevronLeft, Che
 import html2pdf from "html2pdf.js";
 import { useDispatch } from "react-redux";
 import { showToast } from "../../redux/toast/toastSlice";
+import { YouTubeTableSkeleton } from "../../components/YouTubeSkeletonLoader";
 
 interface PurchaseItem {
   id: string;
@@ -581,9 +582,7 @@ export const BunkDetails: React.FC = () => {
       )}
 
       {loading ? (
-        <Box display="flex" justifyContent="center" alignItems="center" flexGrow={1} minHeight="50vh">
-          <CircularProgress size={44} />
-        </Box>
+        <YouTubeTableSkeleton rows={5} columns={7} />
       ) : activeView === "daily" ? (
         /* MAIN PAGE BANNER CARD FOR SELECTED DATE */
         <Card sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3.5, border: "1px solid rgba(255,255,255,0.08)", bgcolor: "background.paper", boxShadow: "0 12px 40px rgba(0,0,0,0.3)", flexGrow: 1, display: "flex", flexDirection: "column", gap: 2.5 }}>

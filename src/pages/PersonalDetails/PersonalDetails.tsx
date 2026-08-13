@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useMemo } from "react";
 import {
   Box, Card, CardContent, Typography, Button, TextField,
   Dialog, DialogTitle, DialogContent, DialogActions, Grid,
-  CircularProgress, Divider, Avatar, Chip, IconButton, Tooltip,
+  Divider, Avatar, Chip, IconButton, Tooltip,
   FormControl, InputLabel, Select, MenuItem, Paper
 } from "@mui/material";
 import {
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { showToast } from "../../redux/toast/toastSlice";
+import { YouTubeProfileSkeleton, YouTubeSpinner } from "../../components/YouTubeSkeletonLoader";
 
 interface OwnerDocument {
   id: number;
@@ -333,11 +334,7 @@ export const PersonalDetails: React.FC = () => {
   }, [documents, categoryFilter]);
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress size={44} color="primary" />
-      </Box>
-    );
+    return <YouTubeProfileSkeleton />;
   }
 
   return (
@@ -567,9 +564,7 @@ export const PersonalDetails: React.FC = () => {
         </Box>
 
         {fetchingDocs ? (
-          <Box display="flex" justifyContent="center" py={4}>
-            <CircularProgress size={32} />
-          </Box>
+          <YouTubeSpinner label="Loading documents..." />
         ) : filteredDocs.length === 0 ? (
           <Paper sx={{ p: 4, textAlign: "center", borderRadius: 3, border: "1px dashed rgba(255,255,255,0.15)", bgcolor: "background.paper" }}>
             <UploadCloud size={40} style={{ color: "#94a3b8", opacity: 0.5, marginBottom: 8 }} />

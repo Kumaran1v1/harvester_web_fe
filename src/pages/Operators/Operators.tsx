@@ -6,7 +6,7 @@ import dayjs from "dayjs";
 import {
   Box, Card, Typography, Button, TextField, Dialog, DialogTitle,
   DialogContent, DialogActions, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Paper, CircularProgress,
+  TableContainer, TableHead, TableRow, Paper,
   IconButton, Tooltip, Grid, Tabs, Tab, ButtonGroup, Chip,
   FormControl, InputLabel, Select, MenuItem, Divider, useMediaQuery, useTheme
 } from "@mui/material";
@@ -14,6 +14,7 @@ import { Users, Plus, Trash2, History, Banknote, Search, ChevronLeft, ChevronRig
 import { useDispatch } from "react-redux";
 import { showToast } from "../../redux/toast/toastSlice";
 import html2pdf from "html2pdf.js";
+import { YouTubeTableSkeleton } from "../../components/YouTubeSkeletonLoader";
 
 interface Operator {
   id: number;
@@ -727,9 +728,7 @@ export const Operators: React.FC = () => {
           </Box>
 
           {loading && operators.length === 0 ? (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="30vh">
-              <CircularProgress size={44} />
-            </Box>
+            <YouTubeTableSkeleton rows={5} columns={8} />
           ) : (
             <Card sx={{ borderRadius: 3, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
               <TableContainer component={Paper} sx={{ bgcolor: "background.paper", overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
@@ -903,9 +902,7 @@ export const Operators: React.FC = () => {
           </Box>
 
           {loading && operators.length === 0 ? (
-            <Box display="flex" justifyContent="center" alignItems="center" minHeight="30vh">
-              <CircularProgress size={44} />
-            </Box>
+            <YouTubeTableSkeleton rows={5} columns={7} />
           ) : (
             <Card sx={{ borderRadius: 3, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
               <TableContainer component={Paper} sx={{ bgcolor: "background.paper", overflowX: "auto" }}>

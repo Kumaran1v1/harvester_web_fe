@@ -6,13 +6,14 @@ import dayjs from "dayjs";
 import {
   Box, Card, Typography, Button, TextField, Dialog, DialogTitle,
   DialogContent, DialogActions, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Paper, CircularProgress,
+  TableContainer, TableHead, TableRow, Paper,
   IconButton, Tooltip, Grid, Checkbox, Chip, TablePagination, Tabs, Tab
 } from "@mui/material";
 import { FileText, Plus, Edit, Search, History, Trash2, FileSpreadsheet } from "lucide-react";
 import { exportBillsPDF, exportBillsExcel } from "../../utils/billsExport";
 import { useDispatch } from "react-redux";
 import { showToast } from "../../redux/toast/toastSlice";
+import { YouTubeTableSkeleton, YouTubeSpinner } from "../../components/YouTubeSkeletonLoader";
 
 interface Bill {
   id: number;
@@ -655,9 +656,7 @@ export const Bills: React.FC = () => {
 
       {/* Bills Table */}
       {loading && bills.length === 0 ? (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="40vh">
-          <CircularProgress size={44} />
-        </Box>
+        <YouTubeTableSkeleton rows={6} columns={10} />
       ) : (
         <Card sx={{ borderRadius: 3, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
           <TableContainer component={Paper} sx={{ bgcolor: "background.paper", overflowX: "auto" }}>
@@ -959,9 +958,7 @@ export const Bills: React.FC = () => {
         <DialogTitle sx={{ fontWeight: 800 }}>Payment History - {selectedBill?.customerName}</DialogTitle>
         <DialogContent dividers sx={{ p: 0 }}>
           {fetchingHistory ? (
-            <Box display="flex" justifyContent="center" alignItems="center" py={8}>
-              <CircularProgress size={36} />
-            </Box>
+            <YouTubeSpinner label="Loading history..." />
           ) : paymentsHistory.length === 0 ? (
             <Box py={6} textAlign="center">
               <Typography color="text.secondary">No payment entries found for this bill.</Typography>

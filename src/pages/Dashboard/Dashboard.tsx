@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
-  Box, Grid, Card, CardContent, Typography, Paper, CircularProgress,
+  Box, Grid, Card, CardContent, Typography, Paper,
   Avatar, Alert, Divider, Chip
 } from "@mui/material";
 import {
@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { ROUTES } from "../../routes/routeConstants";
+import { YouTubeDashboardSkeleton } from "../../components/YouTubeSkeletonLoader";
 
 interface DashboardStats {
   user?: {
@@ -69,11 +70,7 @@ export const Dashboard: React.FC = () => {
   const machineName = stats?.user?.machineName || storedUser.machineName || "Harvester Machine";
 
   if (loading) {
-    return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="60vh">
-        <CircularProgress size={44} color="primary" />
-      </Box>
-    );
+    return <YouTubeDashboardSkeleton />;
   }
 
   const cardsData = [

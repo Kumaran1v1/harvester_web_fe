@@ -4,6 +4,7 @@ import { Outlet } from "react-router-dom";
 import Header from "./Header";
 import Sidebar from "./Sidebar";
 import GlobalToast from "../components/GlobalToast";
+import YouTubeTopLoader from "../components/YouTubeTopLoader";
 
 const SIDEBAR_WIDTH = 260;
 
@@ -18,6 +19,9 @@ export const MainLayout: React.FC = () => {
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh", backgroundColor: "background.default" }}>
+      {/* YouTube Top Progress Loader */}
+      <YouTubeTopLoader />
+
       {/* Top Header */}
       <Header onToggleSidebar={handleToggleSidebar} />
 

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from "react";
 import {
   Box, Card, Typography, Button, TextField, Table, TableBody, TableCell,
-  TableContainer, TableHead, TableRow, Paper, CircularProgress, Chip, TablePagination, Grid
+  TableContainer, TableHead, TableRow, Paper, Chip, TablePagination, Grid
 } from "@mui/material";
 import { CreditCard, Search, FileSpreadsheet, FileText } from "lucide-react";
 import { useDispatch } from "react-redux";
 import { showToast } from "../../redux/toast/toastSlice";
 import { exportPendingBillsPDF, exportPendingBillsExcel } from "../../utils/pendingBillsExport";
+import { YouTubeTableSkeleton } from "../../components/YouTubeSkeletonLoader";
 
 interface PendingBill {
   id: string;
@@ -189,9 +190,7 @@ export const PendingBills: React.FC = () => {
 
       {/* Pending Bills Table */}
       {loading && pendingBills.length === 0 ? (
-        <Box display="flex" justifyContent="center" alignItems="center" minHeight="40vh">
-          <CircularProgress size={44} />
-        </Box>
+        <YouTubeTableSkeleton rows={6} columns={8} />
       ) : (
         <Card sx={{ borderRadius: 3, border: "1px solid rgba(255,255,255,0.08)", overflow: "hidden" }}>
           <TableContainer component={Paper} sx={{ bgcolor: "background.paper", overflowX: "auto" }}>
