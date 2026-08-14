@@ -257,4 +257,59 @@ export const YouTubeSpinner: React.FC<{ size?: number; label?: string }> = ({ si
   );
 };
 
+
+/**
+ * YouTube Card Grid Skeleton Loader
+ * Responsive 6-card grid for card view loading
+ */
+export const YouTubeCardGridSkeleton: React.FC<{ count?: number }> = ({ count = 6 }) => {
+  const theme = useTheme();
+  const isDark = theme.palette.mode === "dark";
+
+  return (
+    <Grid container spacing={2.5}>
+      {Array.from({ length: count }).map((_, idx) => (
+        <Grid item xs={12} sm={6} lg={4} key={idx}>
+          <Card
+            sx={{
+              borderRadius: 3,
+              bgcolor: isDark ? "rgba(255, 255, 255, 0.03)" : "rgba(0, 0, 0, 0.02)",
+              border: `1px solid ${isDark ? "rgba(255, 255, 255, 0.08)" : "rgba(0, 0, 0, 0.06)"}`,
+              p: 2.5,
+              display: "flex",
+              flexDirection: "column",
+              gap: 2,
+              boxShadow: "none",
+            }}
+          >
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1.5, flexGrow: 1 }}>
+                <Skeleton variant="circular" width={40} height={40} animation="wave" />
+                <Box sx={{ flexGrow: 1 }}>
+                  <Skeleton variant="text" width="65%" height={22} animation="wave" />
+                  <Skeleton variant="text" width="40%" height={16} animation="wave" />
+                </Box>
+              </Box>
+              <Skeleton variant="rectangular" width={80} height={24} animation="wave" sx={{ borderRadius: 2 }} />
+            </Box>
+
+            <Box sx={{ display: "flex", gap: 2 }}>
+              <Skeleton variant="rectangular" width="50%" height={20} animation="wave" sx={{ borderRadius: 1 }} />
+              <Skeleton variant="rectangular" width="50%" height={20} animation="wave" sx={{ borderRadius: 1 }} />
+            </Box>
+
+            <Skeleton variant="rectangular" width="100%" height={70} animation="wave" sx={{ borderRadius: 2 }} />
+
+            <Box sx={{ display: "flex", justifyContent: "space-between", pt: 1 }}>
+              <Skeleton variant="rectangular" width={100} height={32} animation="wave" sx={{ borderRadius: 2 }} />
+              <Skeleton variant="rectangular" width={80} height={32} animation="wave" sx={{ borderRadius: 2 }} />
+            </Box>
+          </Card>
+        </Grid>
+      ))}
+    </Grid>
+  );
+};
+
 export default YouTubeDashboardSkeleton;
+

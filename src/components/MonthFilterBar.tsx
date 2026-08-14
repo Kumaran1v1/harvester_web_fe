@@ -159,13 +159,13 @@ export const MonthFilterBar: React.FC<MonthFilterBarProps> = ({ filterState, onC
             </Button>
           )}
         </Box>
-      ) : (
-        <Box display="flex" alignItems="center" justifyContent="center" sx={{ py: 0.5 }}>
-          <Typography variant="caption" color="primary.main" sx={{ fontWeight: 700, textAlign: "center" }}>
+      ) : !isMobile ? (
+        <Box display="flex" alignItems="center" justifyContent="center" sx={{ py: 0.2 }}>
+          <Typography variant="caption" color="primary.main" sx={{ fontWeight: 700, textAlign: "center", fontSize: "11px" }}>
             Showing all historical records across all months
           </Typography>
         </Box>
-      )}
+      ) : null}
     </Box>
   );
 };
