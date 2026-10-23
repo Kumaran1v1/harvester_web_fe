@@ -4,7 +4,7 @@ import { useLocation, useNavigate } from "react-router-dom";
 import { ROUTES } from "../routes/routeConstants";
 import {
   LayoutDashboard, User, FileText, CreditCard,
-  Tractor, Users
+  Tractor, Users, Bell
 } from "lucide-react";
 
 interface SidebarProps {
@@ -37,6 +37,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ mobileOpen, onToggleSidebar })
     { label: "Pending Bills", path: ROUTES.PENDING_BILLS, icon: CreditCard },
     { label: "Operator Records", path: ROUTES.OPERATORS, icon: Users },
     { label: "Bunk Details", path: ROUTES.BUNK_DETAILS, icon: Tractor },
+    { label: "Notification Master", path: ROUTES.NOTIFICATION_MASTER, icon: Bell },
   ];
 
   const drawerContent = (

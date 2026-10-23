@@ -11,6 +11,7 @@ import Bills from "../pages/Bills/Bills";
 import PendingBills from "../pages/PendingBills/PendingBills";
 import Operators from "../pages/Operators/Operators";
 import BunkDetails from "../pages/BunkDetails/BunkDetails";
+import NotificationMaster from "../pages/NotificationMaster/NotificationMaster";
 
 export const AppRoutes: React.FC = () => {
   const { isAuthenticated } = useAuth();
@@ -31,6 +32,7 @@ export const AppRoutes: React.FC = () => {
           <Route path={ROUTES.PENDING_BILLS} element={<PendingBills />} />
           <Route path={ROUTES.OPERATORS} element={<Operators />} />
           <Route path={ROUTES.BUNK_DETAILS} element={<BunkDetails />} />
+          <Route path={ROUTES.NOTIFICATION_MASTER} element={<NotificationMaster />} />
         </Route>
       </Route>
 

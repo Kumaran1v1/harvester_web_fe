@@ -8,5 +8,6 @@ export const ROUTES = {
   BILLS: "/bills",
   PENDING_BILLS: "/pending-bills",
   OPERATORS: "/operator-records",
-  BUNK_DETAILS: "/bunk-details"
+  BUNK_DETAILS: "/bunk-details",
+  NOTIFICATION_MASTER: "/notification-master"
 } as const;
